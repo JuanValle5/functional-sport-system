@@ -1,0 +1,98 @@
+# ===================================================================
+# Maven & Build Artifacts
+# ===================================================================
+target/
+!**/src/main/**/target/
+!**/src/test/**/target/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+.mvn/wrapper/maven-wrapper.jar
+.mvn/timing.properties
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+
+# ===================================================================
+# Java & JVM
+# ===================================================================
+*.class
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+hs_err_pid*
+replay_pid*
+
+# ===================================================================
+# Spring Boot & Logs
+# ===================================================================
+HELP.md
+*.log
+logs/
+spring.log*
+*.pid
+
+# ===================================================================
+# Environment Variables & Local Configuration
+# ===================================================================
+.env
+.env.*
+!.env.example
+application-local.properties
+application-local.yml
+application-local.yaml
+application-secret*.properties
+application-secret*.yml
+application-secret*.yaml
+
+# ===================================================================
+# IDEs & Editors
+# ===================================================================
+### STS / Eclipse ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+### Temporary Editor Files ###
+*.swp
+*.swo
+*~
+
+# ===================================================================
+# Operating System
+# ===================================================================
+.DS_Store
+Thumbs.db
+Desktop.ini
