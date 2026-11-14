@@ -8,6 +8,7 @@ import com.innoverzion.functionalsportsystem.repository.UsuarioSistemaRepository
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +22,7 @@ public class DataInitializer implements CommandLineRunner {
 
     private final PlanRepository planRepository;
     private final UsuarioSistemaRepository usuarioSistemaRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     @Transactional
@@ -94,17 +96,27 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void inicializarUsuarioAdmin() {
-        if (!usuarioSistemaRepository.existsByUsername("jhorman")) {
-            UsuarioSistema admin = UsuarioSistema.builder()
-                    .username("jhorman")
-                    .passwordHash("ADMIN_JHORMAN_2026")
-                    .nombreCompleto("Jhorman - Administrador Funcional Sport Col")
-                    .numeroDocumento("ADMIN-001")
-                    .rol(RolUsuario.ADMIN)
-                    .activo(true)
-                    .build();
-            usuarioSistemaRepository.save(admin);
-            log.info("Usuario ADMIN inicial creado para Funcional Sport Col (username: jhorman)");
-        }
+        usuarioSistemaRepository.findByUsername("jhorman").ifPresentOrElse(
+                existingAdmin -> {
+                    if (!existingAdmin.getPasswordHash().startsWith("$2a$")
+                            && !existingAdmin.getPasswordHash().startsWith("$2b$")) {
+                        existingAdmin.setPasswordHash(passwordEncoder.encode("ADMIN_JHORMAN_2026"));
+                        usuarioSistemaRepository.save(existingAdmin);
+                        log.info("Contraseña del usuario ADMIN 'jhorman' migrada a hash BCrypt.");
+                    }
+                },
+                () -> {
+                    UsuarioSistema admin = UsuarioSistema.builder()
+                            .username("jhorman")
+                            .passwordHash(passwordEncoder.encode("ADMIN_JHORMAN_2026"))
+                            .nombreCompleto("Jhorman - Administrador Funcional Sport Col")
+                            .numeroDocumento("ADMIN-001")
+                            .rol(RolUsuario.ADMIN)
+                            .activo(true)
+                            .build();
+                    usuarioSistemaRepository.save(admin);
+                    log.info("Usuario ADMIN inicial creado para Funcional Sport Col (username: jhorman)");
+                }
+        );
     }
 }
