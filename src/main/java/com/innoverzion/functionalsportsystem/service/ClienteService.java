@@ -26,6 +26,7 @@ public class ClienteService {
 
     private final ClienteRepository clienteRepository;
     private final HuellaBiometricaRepository huellaBiometricaRepository;
+    private final BiometricCacheService biometricCacheService;
 
     /**
      * Sección 4.1 y 4.3: Registro de cliente en frío con los campos obligatorios:
@@ -157,6 +158,7 @@ public class ClienteService {
                         .build());
 
         HuellaBiometrica guardada = huellaBiometricaRepository.save(huella);
+        biometricCacheService.actualizarHuellaEnCache(guardada);
         log.info("Huella enrolada para cliente {} en dedo {}", cliente.getNumeroDocumento(), guardada.getPosicionDedo());
 
         return mapearHuellaADto(guardada);

@@ -3,6 +3,7 @@ package com.innoverzion.functionalsportsystem.repository;
 import com.innoverzion.functionalsportsystem.domain.entity.HuellaBiometrica;
 import com.innoverzion.functionalsportsystem.domain.enums.PosicionDedo;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 import java.util.Optional;
@@ -14,5 +15,6 @@ public interface HuellaBiometricaRepository extends JpaRepository<HuellaBiometri
 
     Optional<HuellaBiometrica> findByClienteIdAndPosicionDedo(UUID clienteId, PosicionDedo posicionDedo);
 
-    List<HuellaBiometrica> findByActivoTrue();
+    @Query("SELECT h FROM HuellaBiometrica h JOIN FETCH h.cliente WHERE h.activo = true")
+    List<HuellaBiometrica> findAllActivasConCliente();
 }

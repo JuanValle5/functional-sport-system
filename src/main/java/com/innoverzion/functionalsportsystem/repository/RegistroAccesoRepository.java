@@ -1,6 +1,7 @@
 package com.innoverzion.functionalsportsystem.repository;
 
 import com.innoverzion.functionalsportsystem.domain.entity.RegistroAcceso;
+import com.innoverzion.functionalsportsystem.domain.enums.ColorSemaforo;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDate;
@@ -22,6 +23,10 @@ public interface RegistroAccesoRepository extends JpaRepository<RegistroAcceso, 
             LocalDate fechaInicioSemana,
             LocalDate fechaFinSemana
     );
+
+    long countByFechaAccesoAndAccesoAutorizadoTrue(LocalDate fechaAcceso);
+
+    long countByFechaAccesoAndColorSemaforo(LocalDate fechaAcceso, ColorSemaforo colorSemaforo);
 
     List<RegistroAcceso> findTop50ByOrderByFechaHoraExactaDesc();
 }
