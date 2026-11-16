@@ -38,6 +38,7 @@ replay_pid*
 HELP.md
 *.log
 logs/
+backups/
 spring.log*
 *.pid
 

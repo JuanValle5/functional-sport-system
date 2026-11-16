@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Funcional Sport Col — Sistema Biométrico y Control de Membresías</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <!-- Barra superior -->
+    <header class="topbar">
+        <div class="brand">
+            <span class="brand-badge">FSC</span>
+            <div>
+                <h1>FUNCIONAL SPORT COL</h1>
+                <small>Control Biométrico ZKTeco • Membresías • Turnos de Caja Local</small>
+            </div>
+        </div>
+
+        <div class="user-session-bar">
+            <span id="infoOperador">Sesión no iniciada</span>
+            <span id="badgeRolOperador" class="role-pill hidden"></span>
+            <a href="/monitor-cliente.html" target="_blank" class="btn btn-outline" style="text-decoration:none; font-size:0.8rem;">
+                Abrir Pantalla Cliente (2do Monitor)
+            </a>
+            <button id="btnCerrarSesion" class="btn btn-outline hidden" onclick="cerrarSesion()" style="font-size:0.8rem;">
+                Cambiar Operador
+            </button>
+        </div>
+    </header>
+
+    <!-- Panel de Login inicial -->
+    <div id="vistaLogin" class="main-container" style="max-width:460px; margin-top:3rem;">
+        <div class="card">
+            <h2>Ingreso al Sistema Local — Recepción / Administración</h2>
+            <div id="alertaLogin" class="alert-banner error hidden"></div>
+            <div class="form-group">
+                <label>Usuario</label>
+                <input type="text" id="loginUsername" value="jhorman" placeholder="Ej: jhorman o recepcion_manana">
+            </div>
+            <div class="form-group">
+                <label>Contraseña</label>
+                <input type="password" id="loginPassword" value="ADMIN_JHORMAN_2026" placeholder="Contraseña del operador">
+            </div>
+            <button class="btn" style="width:100%;" onclick="iniciarSesion()">Ingresar al Sistema</button>
+            <p style="margin-top:0.85rem; font-size:0.78rem; color:var(--text-secondary);">
+                Semilla Admin por defecto: usuario <code>jhorman</code> / clave <code>ADMIN_JHORMAN_2026</code>
+            </p>
+        </div>
+    </div>
+
+    <!-- Aplicación Principal -->
+    <div id="vistaApp" class="hidden">
+        <nav class="nav-tabs">
+            <button class="tab-btn active" onclick="cambiarTab('tabMonitor', this)">1. Monitor Biométrico (En Vivo)</button>
+            <button class="tab-btn" onclick="cambiarTab('tabClientes', this)">2. Clientes y Enrolamiento en Frío</button>
+            <button class="tab-btn" onclick="cambiarTab('tabMembresias', this)">3. Venta de Planes y Congelamientos</button>
+            <button class="tab-btn" onclick="cambiarTab('tabCaja', this)">4. Turnos de Caja (Mañana / Tarde)</button>
+            <button id="btnTabAdmin" class="tab-btn hidden" onclick="cambiarTab('tabAdmin', this)">5. Gerencia, Rentabilidad y Backups (ADMIN)</button>
+        </nav>
+
+        <main class="main-container">
+            <div id="alertaGlobal" class="alert-banner hidden"></div>
+
+            <!-- TAB 1: MONITOR BIOMÉTRICO EN TIEMPO REAL -->
+            <section id="tabMonitor" class="tab-section">
+                <div class="grid-4">
+                    <div class="stat-card">
+                        <div class="label">Ingresos Autorizados Hoy</div>
+                        <div id="statAutorizadosHoy" class="value" style="color:#10b981;">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">Alertas 3 Días (Amarillo)</div>
+                        <div id="statAmarillosHoy" class="value" style="color:#f59e0b;">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">Bloqueos / Anti-Passback (Rojo)</div>
+                        <div id="statRojosHoy" class="value" style="color:#ef4444;">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">Huellas ZKTeco en RAM</div>
+                        <div id="statHuellasRam" class="value" style="color:#60a5fa;">0</div>
+                    </div>
+                </div>
+
+                <!-- Semáforo Visual Silencioso -->
+                <div id="cajaSemaforoRecepcion" class="semaforo-box">
+                    <span id="semaforoBadge" class="semaforo-badge" style="background:#334155; color:#fff;">
+                        MONITOR SILENCIOSO ACTIVO • ESPERANDO LECTURA
+                    </span>
+                    <div id="semaforoNombre" class="semaforo-cliente-nombre">Coloque el dedo en el lector ZKTeco ZK-9500</div>
+                    <div id="semaforoMensaje" class="semaforo-mensaje" style="color:#94a3b8;">
+                        Anti-Passback activo (máximo 1 ingreso por día) • 0 días de gracia
+                    </div>
+                    <div class="semaforo-detalles-grid">
+                        <div>
+                            <small style="color:var(--text-secondary);">Plan Activo</small>
+                            <div id="semaforoPlan" style="font-weight:800;">—</div>
+                        </div>
+                        <div>
+                            <small style="color:var(--text-secondary);">Fecha Exacta Vencimiento</small>
+                            <div id="semaforoVencimiento" style="font-weight:800;">—</div>
+                        </div>
+                        <div>
+                            <small style="color:var(--text-secondary);">Días / Sesiones Restantes</small>
+                            <div id="semaforoRestantes" style="font-weight:800;">—</div>
+                        </div>
+                        <div>
+                            <small style="color:var(--text-secondary);">Saldo Pendiente en Caja</small>
+                            <div id="semaforoSaldo" style="font-weight:800;">$0 COP</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="card">
+                        <h2>Lectura de Huella USB ZKTeco / Validación por Cédula</h2>
+                        <div class="form-group">
+                            <label>Validar por Plantilla Biométrica (Sensor USB ZKTeco)</label>
+                            <div style="display:flex; gap:0.5rem;">
+                                <input type="text" id="inputHuellaValidar" placeholder="Plantilla Base64 o código de huella ZKTeco">
+                                <button class="btn btn-success" onclick="validarPorHuella()">Validar Huella</button>
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-top:1rem;">
+                            <label>Validar Ingreso por Documento de Identidad (Respaldo en Mostrador)</label>
+                            <div style="display:flex; gap:0.5rem;">
+                                <input type="text" id="inputDocValidar" placeholder="Ej: 1088001122">
+                                <button class="btn" onclick="validarPorDocumento()">Validar Cédula</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h2>Últimas Marcaciones en Recepción</h2>
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Hora</th>
+                                        <th>Deportista</th>
+                                        <th>Plan</th>
+                                        <th>Semáforo</th>
+                                        <th>Motivo</th>
+                                        <th>Días/Ses.</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaHistorialAccesos"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 2: CLIENTES Y ENROLAMIENTO EN FRÍO -->
+            <section id="tabClientes" class="tab-section hidden">
+                <div class="grid-2">
+                    <div class="card">
+                        <h2>Ficha Técnica de Registro en Frío (Sección 4.1)</h2>
+                        <div class="form-group">
+                            <label>Tipo de Documento *</label>
+                            <select id="cliTipoDoc">
+                                <option value="CC">Cédula de Ciudadanía (CC)</option>
+                                <option value="TI">Tarjeta de Identidad (TI)</option>
+                                <option value="PASAPORTE">Pasaporte</option>
+                                <option value="CE">Cédula de Extranjería (CE)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Número de Documento *</label>
+                            <input type="text" id="cliNumDoc" placeholder="Ej: 1088223344">
+                        </div>
+                        <div class="form-group">
+                            <label>Nombres *</label>
+                            <input type="text" id="cliNombres" placeholder="Nombres completos">
+                        </div>
+                        <div class="form-group">
+                            <label>Apellidos *</label>
+                            <input type="text" id="cliApellidos" placeholder="Apellidos completos">
+                        </div>
+                        <div class="form-group">
+                            <label>Teléfono Celular / WhatsApp (Notificaciones) *</label>
+                            <input type="text" id="cliWhatsapp" placeholder="Ej: 3101234567">
+                        </div>
+                        <div class="form-group">
+                            <label>Observaciones Médicas / Notas</label>
+                            <input type="text" id="cliObs" placeholder="Opcional">
+                        </div>
+                        <button class="btn btn-success" style="width:100%;" onclick="registrarCliente()">
+                            Registrar Deportista
+                        </button>
+                    </div>
+
+                    <div class="card">
+                        <h2>Enrolamiento Biométrico USB ZKTeco (1 a N Dedos)</h2>
+                        <div class="form-group">
+                            <label>Buscar Cliente por Número de Documento</label>
+                            <div style="display:flex; gap:0.5rem;">
+                                <input type="text" id="buscarDocEnrolar" placeholder="Cédula del cliente">
+                                <button class="btn" onclick="buscarClientePorCedula()">Buscar</button>
+                            </div>
+                        </div>
+                        <div id="fichaClienteEncontrado" class="hidden" style="background:#0f172a; padding:1rem; border-radius:8px; margin-bottom:1rem;">
+                            <div style="font-weight:800; font-size:1.05rem;" id="lblClienteSeleccionado"></div>
+                            <small id="lblClienteDetalle" style="color:var(--text-secondary);"></small>
+                            <input type="hidden" id="clienteSeleccionadoId">
+
+                            <div class="form-group" style="margin-top:0.85rem;">
+                                <label>Posición del Dedo en Sensor ZKTeco</label>
+                                <select id="huellaPosicionDedo">
+                                    <option value="INDICE_DER">Índice Derecho (Principal)</option>
+                                    <option value="PULGAR_DER">Pulgar Derecho</option>
+                                    <option value="INDICE_IZQ">Índice Izquierdo (Respaldo)</option>
+                                    <option value="PULGAR_IZQ">Pulgar Izquierdo</option>
+                                    <option value="MEDIO_DER">Medio Derecho</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Plantilla Biométrica Capturada (ZKTeco SilkID)</label>
+                                <input type="text" id="huellaPlantillaInput" placeholder="Pegue o capture plantilla del lector USB">
+                            </div>
+                            <button class="btn btn-success" onclick="enrolarHuellaCliente()">
+                                Guardar Huella en Base de Datos y Memoria RAM
+                            </button>
+                        </div>
+
+                        <h2>Directorio de Clientes Registrados</h2>
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Documento</th>
+                                        <th>Nombre Completo</th>
+                                        <th>WhatsApp</th>
+                                        <th>Huellas</th>
+                                        <th>Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaClientes"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 3: VENTA DE PLANES, RENOVACIONES Y CONGELAMIENTO MÉDICO -->
+            <section id="tabMembresias" class="tab-section hidden">
+                <div class="grid-2">
+                    <div class="card">
+                        <h2>Venta / Renovación con Corte Dinámico (Pago Completo Anticipado)</h2>
+                        <div class="form-group">
+                            <label>Documento del Deportista</label>
+                            <div style="display:flex; gap:0.5rem;">
+                                <input type="text" id="ventaDocCliente" placeholder="Ingrese cédula del cliente">
+                                <button class="btn" onclick="cargarClienteParaVenta()">Cargar Historial</button>
+                            </div>
+                        </div>
+                        <div id="infoClienteVenta" style="margin-bottom:0.85rem; color:#34d399; font-weight:700;"></div>
+                        <input type="hidden" id="ventaClienteId">
+
+                        <div class="form-group">
+                            <label>Plan Oficial Vigente (Sección 1.1)</label>
+                            <select id="ventaPlanCodigo">
+                                <option value="DIA">Día (Pase Diario / Clase) — $10.000 COP (1 ingreso)</option>
+                                <option value="QUINCENA">Quincena — $50.000 COP (15 días)</option>
+                                <option value="MES_FULL" selected>Mensualidad - Todos los días — $80.000 COP (30 días)</option>
+                                <option value="MES_3XSEM">Mensualidad - 3 días por semana — $70.000 COP (12 sesiones / máx 3xSem)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Canal de Recaudo en Mostrador (Sección 3.1)</label>
+                            <select id="ventaCanalRecaudo">
+                                <option value="EFECTIVO">Efectivo</option>
+                                <option value="NEQUI">Transferencia Nequi</option>
+                                <option value="DAVIPLATA">Transferencia Daviplata</option>
+                                <option value="BANCOLOMBIA">Transferencia Bancolombia (QR / App)</option>
+                                <option value="LLAVE_BRE_B">Llave Bre-B</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Referencia / Comprobante Digital (Opcional)</label>
+                            <input type="text" id="ventaReferencia" placeholder="Nro comprobante Nequi / Bancolombia / Bre-B">
+                        </div>
+
+                        <button class="btn btn-success" style="width:100%;" onclick="venderMembresia()">
+                            Facturar Plan y Activar Vigencia
+                        </button>
+                    </div>
+
+                    <div class="card">
+                        <h2>Congelamiento Médico (Regla 1.5) y Ajustes con Clave ADMIN</h2>
+                        <div class="form-group">
+                            <label>ID de Membresía Seleccionada</label>
+                            <input type="text" id="accionMembresiaId" placeholder="Seleccione de la tabla inferior">
+                        </div>
+                        <div class="form-group">
+                            <label>Certificado Médico / Entidad EPS (Obligatorio para Congelar)</label>
+                            <input type="text" id="congelarRefMedica" placeholder="Ej: EPS Sura Incapacidad #4491">
+                        </div>
+                        <div class="form-group">
+                            <label>Clave de Administrador (Obligatoria para Congelar / Anular)</label>
+                            <input type="password" id="accionClaveAdmin" placeholder="Clave de Jhorman (ADMIN)">
+                        </div>
+                        <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                            <button class="btn btn-warning" onclick="congelarMembresia()">Congelar por Salud (Cert. Médico)</button>
+                            <button class="btn btn-success" onclick="reactivarMembresia()">Reactivar Membresía</button>
+                            <button class="btn btn-danger" onclick="anularMembresia()">Anular Membresía (Clave Admin)</button>
+                        </div>
+
+                        <h2 style="margin-top:1.25rem;">Historial de Membresías del Cliente</h2>
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Plan</th>
+                                        <th>Inicio</th>
+                                        <th>Vencimiento</th>
+                                        <th>Sesiones</th>
+                                        <th>Estado</th>
+                                        <th>Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaMembresiasCliente"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 4: CONTROL DE CAJA Y TURNOS (MAÑANA Y TARDE) -->
+            <section id="tabCaja" class="tab-section hidden">
+                <div class="grid-2">
+                    <div class="card">
+                        <h2>Apertura y Cierre de Turno (2 Turnos: Mañana y Tarde)</h2>
+                        <div id="estadoTurnoActualBox" style="background:#0f172a; padding:1rem; border-radius:8px; margin-bottom:1rem;">
+                            Cargando estado de caja...
+                        </div>
+
+                        <div id="formAbrirTurno">
+                            <div class="form-group">
+                                <label>Jornada Operativa (Sección 3.4)</label>
+                                <select id="cajaJornada">
+                                    <option value="MANANA">Turno MAÑANA</option>
+                                    <option value="TARDE">Turno TARDE</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Base Inicial de Efectivo en Caja ($ COP)</label>
+                                <input type="number" id="cajaBaseInicial" value="50000">
+                            </div>
+                            <button class="btn btn-success" style="width:100%;" onclick="abrirTurnoCaja()">
+                                Abrir Turno de Recepción
+                            </button>
+                        </div>
+
+                        <div id="formCerrarTurno" class="hidden" style="margin-top:1rem; border-top:1px solid var(--border-color); padding-top:1rem;">
+                            <div class="form-group">
+                                <label>Efectivo Físico Contado al Cierre ($ COP)</label>
+                                <input type="number" id="cajaEfectivoDeclarado" placeholder="Total billetes y monedas en cajón">
+                            </div>
+                            <div class="form-group">
+                                <label>Observaciones del Acta de Cuadre</label>
+                                <input type="text" id="cajaObsCierre" placeholder="Novedades del turno">
+                            </div>
+                            <button class="btn btn-warning" style="width:100%;" onclick="cerrarTurnoCaja()">
+                                Cerrar Turno y Generar Acta de Cuadre
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h2>Desglose de los 5 Canales en el Turno Actual</h2>
+                        <div class="grid-4" style="grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));">
+                            <div class="stat-card">
+                                <div class="label">Efectivo</div>
+                                <div id="tEfectivo" class="value" style="font-size:1.15rem;">$0</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="label">Nequi</div>
+                                <div id="tNequi" class="value" style="font-size:1.15rem;">$0</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="label">Daviplata</div>
+                                <div id="tDaviplata" class="value" style="font-size:1.15rem;">$0</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="label">Bancolombia</div>
+                                <div id="tBancolombia" class="value" style="font-size:1.15rem;">$0</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="label">Llave Bre-B</div>
+                                <div id="tLlaveBreB" class="value" style="font-size:1.15rem;">$0</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="label">Total Recaudo</div>
+                                <div id="tGeneral" class="value" style="font-size:1.15rem; color:#10b981;">$0</div>
+                            </div>
+                        </div>
+
+                        <h2>Pagos Asentados en el Turno (Prohibido Editar sin Clave ADMIN)</h2>
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Hora</th>
+                                        <th>Cliente</th>
+                                        <th>Plan</th>
+                                        <th>Canal</th>
+                                        <th>Monto</th>
+                                        <th>Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaPagosTurno"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 5: PANEL EXCLUSIVO GERENCIA / DASHBOARD MÓVIL / BACKUPS (SOLO ADMIN) -->
+            <section id="tabAdmin" class="tab-section hidden">
+                <div class="grid-4">
+                    <div class="stat-card">
+                        <div class="label">Clientes Registrados</div>
+                        <div id="admTotalClientes" class="value">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">Membresías Vigentes</div>
+                        <div id="admMembresiasActivas" class="value" style="color:#10b981;">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">Por Vencer (≤ 3 días)</div>
+                        <div id="admPorVencer" class="value" style="color:#f59e0b;">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">Facturación Total Hoy</div>
+                        <div id="admFacturacionHoy" class="value" style="color:#34d399;">$0</div>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="card">
+                        <h2>Crear Usuario Recepcionista (Mañana / Tarde)</h2>
+                        <div class="form-group">
+                            <label>Username de Acceso</label>
+                            <input type="text" id="usrUsername" placeholder="Ej: recepcion_manana">
+                        </div>
+                        <div class="form-group">
+                            <label>Contraseña (mínimo 6 caracteres)</label>
+                            <input type="password" id="usrPassword" placeholder="Contraseña inicial">
+                        </div>
+                        <div class="form-group">
+                            <label>Nombre Completo</label>
+                            <input type="text" id="usrNombre" placeholder="Nombre del empleado">
+                        </div>
+                        <div class="form-group">
+                            <label>Documento de Identidad</label>
+                            <input type="text" id="usrDoc" placeholder="Cédula">
+                        </div>
+                        <div class="form-group">
+                            <label>Rol en Matriz de Permisos (Sección 3.5)</label>
+                            <select id="usrRol">
+                                <option value="RECEPCIONISTA">RECEPCIONISTA (Restringido)</option>
+                                <option value="ADMIN">ADMIN (Control Total)</option>
+                            </select>
+                        </div>
+                        <button class="btn" onclick="crearNuevoUsuario()">Crear Usuario del Sistema</button>
+                    </div>
+
+                    <div class="card">
+                        <h2>Respaldo Cifrado en la Nube y Auditoría de Autorizaciones</h2>
+                        <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:0.85rem;">
+                            El sistema ejecuta automáticamente un respaldo cifrado AES todos los días a las 10:00 PM.
+                        </p>
+                        <button class="btn btn-success" onclick="dispararBackupManual()">
+                            Ejecutar Copia de Seguridad Cifrada Ahora
+                        </button>
+                        <div id="infoUltimoBackup" style="margin-top:0.75rem; font-size:0.82rem; color:#94a3b8;"></div>
+
+                        <h2 style="margin-top:1.25rem;">Bitácora de Autorizaciones con Clave ADMIN</h2>
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Fecha/Hora</th>
+                                        <th>Operación</th>
+                                        <th>Recepcionista</th>
+                                        <th>Justificación</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaAuditoriasAdmin"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="/app.js"></script>
+</body>
+</html>
