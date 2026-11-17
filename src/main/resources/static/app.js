@@ -93,7 +93,16 @@ function pintarSemaforoEnRecepcion(r) {
     const box = document.getElementById('cajaSemaforoRecepcion');
     box.className = 'semaforo-box ' + r.colorSemaforo;
 
-    document.getElementById('semaforoBadge').textContent =
+    const iconoOso = document.getElementById('iconoOsoRecepcion');
+    if (iconoOso) {
+        iconoOso.src = r.colorSemaforo === 'VERDE'
+            ? '/logos/web-oso-neon.png'
+            : '/logos/web-oso-blanco-neon.png';
+    }
+
+    const badge = document.getElementById('semaforoBadge');
+    badge.removeAttribute('style');
+    badge.textContent =
         r.colorSemaforo + ' • ' + r.motivoResultado + ' (' + (r.tiempoRespuestaMs || 1) + ' ms)';
     document.getElementById('semaforoNombre').textContent = r.clienteNombreCompleto || 'NO IDENTIFICADO';
     document.getElementById('semaforoMensaje').textContent = r.mensajePantalla || '';

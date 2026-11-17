@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Monitor de Acceso — Funcional Sport Col</title>
+    <link rel="icon" type="image/png" href="/logos/favicon.png">
     <link rel="stylesheet" href="/styles.css">
     <style>
         body {
@@ -11,89 +12,112 @@
             flex-direction: column;
             justify-content: space-between;
             min-height: 100vh;
-            padding: 2rem;
-            background: radial-gradient(circle at top, #131c2e 0%, #090d14 100%);
+            padding: 1.75rem 2.25rem;
+            background: radial-gradient(circle at top, #101810 0%, #050605 100%);
+        }
+        .monitor-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--brand-neon);
+            padding-bottom: 1rem;
         }
         .fullscreen-semaforo {
+            position: relative;
             flex: 1;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             border-radius: 24px;
-            padding: 3rem;
-            margin: 1.5rem 0;
+            padding: 2.5rem;
+            margin: 1.35rem 0;
             border: 4px solid var(--border-color);
+            background: rgba(12, 16, 12, 0.9);
             text-align: center;
+            overflow: hidden;
         }
         .fullscreen-semaforo.VERDE {
-            background: rgba(16, 185, 129, 0.2);
-            border-color: #10b981;
-            box-shadow: 0 0 60px rgba(16, 185, 129, 0.25);
+            background: rgba(112, 232, 86, 0.16);
+            border-color: #70E856;
+            box-shadow: 0 0 70px rgba(112, 232, 86, 0.28);
         }
         .fullscreen-semaforo.AMARILLO {
-            background: rgba(245, 158, 11, 0.22);
-            border-color: #f59e0b;
-            box-shadow: 0 0 60px rgba(245, 158, 11, 0.25);
+            background: rgba(250, 204, 21, 0.2);
+            border-color: #FACC15;
+            box-shadow: 0 0 70px rgba(250, 204, 21, 0.25);
         }
         .fullscreen-semaforo.ROJO {
-            background: rgba(239, 68, 68, 0.24);
-            border-color: #ef4444;
-            box-shadow: 0 0 60px rgba(239, 68, 68, 0.3);
+            background: rgba(255, 59, 59, 0.22);
+            border-color: #FF3B3B;
+            box-shadow: 0 0 70px rgba(255, 59, 59, 0.32);
+        }
+        .semaforo-emblem {
+            height: 96px;
+            width: auto;
+            margin-bottom: 0.75rem;
+            filter: drop-shadow(0 0 18px rgba(112, 232, 86, 0.3));
         }
         .big-name {
-            font-size: 3.2rem;
+            font-size: 3.1rem;
             font-weight: 900;
-            margin: 0.8rem 0;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            margin: 0.5rem 0;
         }
         .big-msg {
-            font-size: 1.5rem;
+            font-size: 1.45rem;
             font-weight: 700;
-            margin-bottom: 2rem;
+            margin-bottom: 1.85rem;
         }
         .client-grid {
             display: grid;
             grid-template-columns: repeat(4, minmax(180px, 1fr));
-            gap: 1.25rem;
+            gap: 1.2rem;
             width: 100%;
-            max-width: 1100px;
+            max-width: 1140px;
         }
         .client-metric {
-            background: rgba(11, 15, 23, 0.8);
+            background: rgba(5, 6, 5, 0.88);
             border: 1px solid var(--border-color);
+            border-top: 3px solid var(--brand-neon);
             border-radius: 14px;
-            padding: 1.25rem;
+            padding: 1.2rem;
         }
         .client-metric .k {
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             color: var(--text-secondary);
             text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 0.05em;
         }
         .client-metric .v {
             font-size: 1.65rem;
-            font-weight: 800;
+            font-weight: 900;
             margin-top: 0.35rem;
+            color: #FFFFFF;
         }
     </style>
 </head>
 <body>
-    <header style="display:flex; justify-content:space-between; align-items:center;">
+    <header class="monitor-header">
         <div class="brand">
-            <span class="brand-badge">FSC</span>
-            <div>
-                <h1>FUNCIONAL SPORT COL</h1>
-                <small>Monitor de Validación Biométrica en Tiempo Real • Operación Silenciosa</small>
-            </div>
+            <img src="/logos/web-logo-horizontal-blanco-neon.png" alt="Funcional Sport" style="height:54px;">
+            <span class="brand-subtitle">Monitor de Validación Biométrica • Operación Silenciosa</span>
         </div>
-        <div id="relojPantalla" style="font-size:1.3rem; font-weight:700; color:#94a3b8;"></div>
+        <div style="display:flex; align-items:center; gap:1rem;">
+            <div id="relojPantalla" style="font-size:1.25rem; font-weight:800; color:var(--brand-neon);"></div>
+            <img src="/logos/web-monograma-fs-neon.png" alt="FS" style="height:42px;">
+        </div>
     </header>
 
     <main id="contenedorSemaforo" class="fullscreen-semaforo">
-        <span id="badgeEstado" class="semaforo-badge" style="background:#334155; color:#fff; font-size:1.1rem;">
+        <img id="iconoOsoMonitor" src="/logos/web-oso-blanco-neon.png" alt="Oso Funcional Sport" class="semaforo-emblem">
+        <span id="badgeEstado" class="semaforo-badge" style="background:#1e291e; color:#70E856; border:1px solid #70E856; font-size:1rem;">
             ESPERANDO LECTURA DE HUELLA EN SENSOR ZKTECO
         </span>
         <div id="nombreDeportista" class="big-name">Coloque su dedo en el lector</div>
-        <div id="mensajeValidacion" class="big-msg" style="color:#94a3b8;">
+        <div id="mensajeValidacion" class="big-msg" style="color:var(--text-secondary);">
             Validación instantánea • Máximo 1 ingreso permitido por día
         </div>
 
@@ -108,7 +132,7 @@
             </div>
             <div class="client-metric">
                 <div class="k">Días / Sesiones Restantes</div>
-                <div id="datoDiasRestantes" class="v">—</div>
+                <div id="datoDiasRestantes" class="v" style="color:var(--brand-neon);">—</div>
             </div>
             <div class="client-metric">
                 <div class="k">Saldo Pendiente en Caja</div>
@@ -117,9 +141,9 @@
         </div>
     </main>
 
-    <footer style="display:flex; justify-content:space-between; color:#64748b; font-size:0.85rem;">
-        <span>Estado del canal SSE: <strong id="estadoSse" style="color:#10b981;">Conectando...</strong></span>
-        <span>Latencia última lectura: <strong id="latenciaMs">—</strong></span>
+    <footer style="display:flex; justify-content:space-between; color:var(--text-secondary); font-size:0.85rem;">
+        <span>Estado del canal SSE: <strong id="estadoSse" style="color:var(--brand-neon);">Conectando...</strong></span>
+        <span>Latencia última lectura: <strong id="latenciaMs" style="color:#fff;">—</strong></span>
     </footer>
 
     <script>
@@ -134,7 +158,13 @@
             const box = document.getElementById('contenedorSemaforo');
             box.className = 'fullscreen-semaforo ' + data.colorSemaforo;
 
+            const oso = document.getElementById('iconoOsoMonitor');
+            oso.src = data.colorSemaforo === 'VERDE'
+                ? '/logos/web-oso-neon.png'
+                : '/logos/web-oso-blanco-neon.png';
+
             const badge = document.getElementById('badgeEstado');
+            badge.removeAttribute('style');
             badge.textContent = data.colorSemaforo + ' • ' + data.motivoResultado;
 
             document.getElementById('nombreDeportista').textContent = data.clienteNombreCompleto || 'NO IDENTIFICADO';
@@ -159,7 +189,7 @@
             const evtSource = new EventSource('/api/v1/acceso/monitor/stream');
             evtSource.onopen = () => {
                 document.getElementById('estadoSse').textContent = 'EN VIVO (Cero Latencia)';
-                document.getElementById('estadoSse').style.color = '#10b981';
+                document.getElementById('estadoSse').style.color = '#70E856';
             };
             evtSource.addEventListener('validacion-acceso', (event) => {
                 const payload = JSON.parse(event.data);
@@ -167,7 +197,7 @@
             });
             evtSource.onerror = () => {
                 document.getElementById('estadoSse').textContent = 'Reconectando...';
-                document.getElementById('estadoSse').style.color = '#f59e0b';
+                document.getElementById('estadoSse').style.color = '#FACC15';
             };
         }
 
