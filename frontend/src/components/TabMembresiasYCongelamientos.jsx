@@ -447,7 +447,7 @@ export default function TabMembresiasYCongelamientos({
               {modalAccion.membresia.fechaVencimientoActual})
             </p>
 
-            {modalAccion.tipo === 'CONGELAR' && (
+            {modalAccion.tipo === 'CONGELAR' ? (
               <div className="form-group">
                 <label>Referencia de Certificado Médico / EPS (Obligatorio) *</label>
                 <input
@@ -458,18 +458,18 @@ export default function TabMembresiasYCongelamientos({
                   required
                 />
               </div>
+            ) : (
+              <div className="form-group">
+                <label>Clave de Autorización del Administrador (Jhorman) *</label>
+                <input
+                  type="password"
+                  value={claveAdmin}
+                  onChange={(e) => setClaveAdmin(e.target.value)}
+                  placeholder="Ingrese clave de ADMIN..."
+                  required
+                />
+              </div>
             )}
-
-            <div className="form-group">
-              <label>Clave de Autorización del Administrador (Jhorman) *</label>
-              <input
-                type="password"
-                value={claveAdmin}
-                onChange={(e) => setClaveAdmin(e.target.value)}
-                placeholder="Ingrese clave de ADMIN..."
-                required
-              />
-            </div>
 
             <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'flex-end' }}>
               <button
@@ -485,7 +485,9 @@ export default function TabMembresiasYCongelamientos({
                   modalAccion.tipo === 'CONGELAR' ? 'btn-warning' : 'btn-danger'
                 }`}
               >
-                Confirmar Autorización
+                {modalAccion.tipo === 'CONGELAR'
+                  ? 'Confirmar Congelamiento Médico'
+                  : 'Confirmar Anulación'}
               </button>
             </div>
           </form>

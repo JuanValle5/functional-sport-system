@@ -9,7 +9,11 @@ const DEDOS_DISPONIBLES = [
   { codigo: 'MEDIO_DER', nombre: 'Medio Der.' }
 ];
 
-export default function TabClientesYHuellas({ mostrarAlerta, onIrAVenderPlan }) {
+export default function TabClientesYHuellas({
+  usuario,
+  mostrarAlerta,
+  onIrAVenderPlan
+}) {
   const [tipoDocumento, setTipoDocumento] = useState('CC');
   const [numeroDocumento, setNumeroDocumento] = useState('');
   const [nombres, setNombres] = useState('');
@@ -23,6 +27,14 @@ export default function TabClientesYHuellas({ mostrarAlerta, onIrAVenderPlan }) 
   const [clienteEnrolar, setClienteEnrolar] = useState(null);
   const [posicionDedo, setPosicionDedo] = useState('INDICE_DER');
   const [plantillaHuella, setPlantillaHuella] = useState('');
+
+  // Modal de confirmación para eliminar cliente (con clave de Admin)
+  const [clienteAEliminar, setClienteAEliminar] = useState(null);
+  const [claveAdminEliminar, setClaveAdminEliminar] = useState('');
+  const [motivoEliminacion, setMotivoEliminacion] = useState('');
+
+  // Modal para editar datos de un cliente
+  const [clienteAEditar, setClienteAEditar] = useState(null);
 
   const cargarClientes = async () => {
     try {
@@ -89,6 +101,59 @@ export default function TabClientesYHuellas({ mostrarAlerta, onIrAVenderPlan }) 
         `/api/v1/clientes/documento/${encodeURIComponent(clienteEnrolar.numeroDocumento)}`
       );
       setClienteEnrolar(actualizado);
+      await cargarClientes();
+    } catch (err) {
+      mostrarAlerta(err.message, 'error');
+    }
+  };
+
+  const handleConfirmarEliminar = async (e) => {
+    e.preventDefault();
+    if (!clienteAEliminar) return;
+    try {
+      await peticionApi(`/api/v1/clientes/${clienteAEliminar.id}`, {
+        method: 'DELETE',
+        body: JSON.stringify({
+          recepcionistaEnTurnoId: usuario?.id,
+          claveAdmin: claveAdminEliminar,
+          motivoEliminacion:
+            motivoEliminacion ||
+            `Eliminación autorizada del socio ${clienteAEliminar.nombreCompleto} (${clienteAEliminar.numeroDocumento})`
+        })
+      });
+      mostrarAlerta(`Socio eliminado con autorización Admin: ${clienteAEliminar.nombreCompleto}`);
+      if (clienteEnrolar?.id === clienteAEliminar.id) {
+        setClienteEnrolar(null);
+      }
+      setClienteAEliminar(null);
+      setClaveAdminEliminar('');
+      setMotivoEliminacion('');
+      await cargarClientes();
+    } catch (err) {
+      mostrarAlerta(err.message, 'error');
+    }
+  };
+
+  const handleGuardarEdicion = async (e) => {
+    e.preventDefault();
+    if (!clienteAEditar) return;
+    try {
+      const actualizado = await peticionApi(`/api/v1/clientes/${clienteAEditar.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          tipoDocumento: clienteAEditar.tipoDocumento,
+          nombres: clienteAEditar.nombres,
+          apellidos: clienteAEditar.apellidos,
+          telefonoWhatsapp: clienteAEditar.telefonoWhatsapp,
+          estado: clienteAEditar.estado,
+          observaciones: clienteAEditar.observaciones
+        })
+      });
+      mostrarAlerta(`Datos actualizados: ${actualizado.nombreCompleto}`);
+      setClienteAEditar(null);
+      if (clienteEnrolar?.id === actualizado.id) {
+        setClienteEnrolar(actualizado);
+      }
       await cargarClientes();
     } catch (err) {
       mostrarAlerta(err.message, 'error');
@@ -360,7 +425,7 @@ export default function TabClientesYHuellas({ mostrarAlerta, onIrAVenderPlan }) 
                     </td>
                     <td>{c.estado}</td>
                     <td>
-                      <div style={{ display: 'flex', gap: '0.4rem' }}>
+                      <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
                         <button
                           type="button"
                           className="btn btn-outline btn-sm"
@@ -373,7 +438,21 @@ export default function TabClientesYHuellas({ mostrarAlerta, onIrAVenderPlan }) 
                           className="btn btn-success btn-sm"
                           onClick={() => onIrAVenderPlan(c)}
                         >
-                          Vender Plan
+                          Plan
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-outline btn-sm"
+                          onClick={() => setClienteAEditar({ ...c })}
+                        >
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-danger btn-sm"
+                          onClick={() => setClienteAEliminar(c)}
+                        >
+                          Eliminar
                         </button>
                       </div>
                     </td>
@@ -384,6 +463,174 @@ export default function TabClientesYHuellas({ mostrarAlerta, onIrAVenderPlan }) 
           </table>
         </div>
       </div>
+
+      {/* Modal de Confirmación con Contraseña Admin para Eliminar Socio */}
+      {clienteAEliminar && (
+        <div className="modal-backdrop">
+          <form className="modal-card" onSubmit={handleConfirmarEliminar}>
+            <div className="card-header">
+              <div className="card-title" style={{ color: 'var(--semaforo-rojo)' }}>
+                Eliminar Socio — Requiere Autorización ADMIN
+              </div>
+            </div>
+            <p style={{ fontSize: '0.88rem', marginBottom: '1rem' }}>
+              Socio a eliminar: <strong>{clienteAEliminar.nombreCompleto}</strong> (
+              {clienteAEliminar.tipoDocumento} {clienteAEliminar.numeroDocumento}).
+              <br />
+              <small style={{ color: 'var(--text-secondary)' }}>
+                Se eliminarán sus huellas biométricas e historial asociado y quedará
+                registrado en la Bitácora Antifraude.
+              </small>
+            </p>
+
+            <div className="form-group">
+              <label>Motivo de la Eliminación *</label>
+              <input
+                type="text"
+                value={motivoEliminacion}
+                onChange={(e) => setMotivoEliminacion(e.target.value)}
+                placeholder="Ej: Registro de prueba o duplicado por error"
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Contraseña del Administrador (Jhorman) *</label>
+              <input
+                type="password"
+                value={claveAdminEliminar}
+                onChange={(e) => setClaveAdminEliminar(e.target.value)}
+                placeholder="Ingrese la contraseña de ADMIN..."
+                required
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => {
+                  setClienteAEliminar(null);
+                  setClaveAdminEliminar('');
+                  setMotivoEliminacion('');
+                }}
+              >
+                Cancelar
+              </button>
+              <button type="submit" className="btn btn-danger">
+                Autorizar y Eliminar Socio
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Modal para Editar Datos del Socio */}
+      {clienteAEditar && (
+        <div className="modal-backdrop">
+          <form className="modal-card" onSubmit={handleGuardarEdicion}>
+            <div className="card-header">
+              <div className="card-title">
+                Editar Socio — {clienteAEditar.numeroDocumento}
+              </div>
+            </div>
+
+            <div className="form-row-2">
+              <div className="form-group">
+                <label>Tipo Doc.</label>
+                <select
+                  value={clienteAEditar.tipoDocumento}
+                  onChange={(e) =>
+                    setClienteAEditar({ ...clienteAEditar, tipoDocumento: e.target.value })
+                  }
+                >
+                  <option value="CC">Cédula (CC)</option>
+                  <option value="TI">Tarjeta Identidad (TI)</option>
+                  <option value="PASAPORTE">Pasaporte</option>
+                  <option value="CE">Cédula Extranjería (CE)</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Estado del Socio</label>
+                <select
+                  value={clienteAEditar.estado}
+                  onChange={(e) =>
+                    setClienteAEditar({ ...clienteAEditar, estado: e.target.value })
+                  }
+                >
+                  <option value="ACTIVO">ACTIVO</option>
+                  <option value="INACTIVO">INACTIVO</option>
+                  <option value="SUSPENDIDO">SUSPENDIDO</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="form-row-2">
+              <div className="form-group">
+                <label>Nombres *</label>
+                <input
+                  type="text"
+                  value={clienteAEditar.nombres}
+                  onChange={(e) =>
+                    setClienteAEditar({ ...clienteAEditar, nombres: e.target.value })
+                  }
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Apellidos *</label>
+                <input
+                  type="text"
+                  value={clienteAEditar.apellidos}
+                  onChange={(e) =>
+                    setClienteAEditar({ ...clienteAEditar, apellidos: e.target.value })
+                  }
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>Celular / WhatsApp *</label>
+              <input
+                type="text"
+                value={clienteAEditar.telefonoWhatsapp}
+                onChange={(e) =>
+                  setClienteAEditar({
+                    ...clienteAEditar,
+                    telefonoWhatsapp: e.target.value
+                  })
+                }
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Observaciones</label>
+              <input
+                type="text"
+                value={clienteAEditar.observaciones || ''}
+                onChange={(e) =>
+                  setClienteAEditar({ ...clienteAEditar, observaciones: e.target.value })
+                }
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => setClienteAEditar(null)}
+              >
+                Cancelar
+              </button>
+              <button type="submit" className="btn btn-success">
+                Guardar Cambios
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </section>
   );
 }

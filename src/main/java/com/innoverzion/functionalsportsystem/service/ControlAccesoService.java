@@ -334,7 +334,7 @@ public class ControlAccesoService {
 
     @Transactional(readOnly = true)
     public List<ResultadoValidacionAccesoDto> listarUltimosAccesosMonitor() {
-        return registroAccesoRepository.findTop50ByOrderByFechaHoraExactaDesc()
+        return registroAccesoRepository.findByFechaAccesoOrderByFechaHoraExactaDesc(LocalDate.now())
                 .stream()
                 .map(r -> mapearRegistroADto(r, construirMensajeResumen(r), null))
                 .toList();

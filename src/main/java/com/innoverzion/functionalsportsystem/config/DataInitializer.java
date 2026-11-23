@@ -8,6 +8,7 @@ import com.innoverzion.functionalsportsystem.repository.UsuarioSistemaRepository
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,12 +24,25 @@ public class DataInitializer implements CommandLineRunner {
     private final PlanRepository planRepository;
     private final UsuarioSistemaRepository usuarioSistemaRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JdbcTemplate jdbcTemplate;
 
     @Override
     @Transactional
     public void run(String... args) {
+        actualizarRestriccionAuditoriaPostgres();
         inicializarPlanesOficiales();
         inicializarUsuarioAdmin();
+    }
+
+    private void actualizarRestriccionAuditoriaPostgres() {
+        try {
+            jdbcTemplate.execute(
+                    "ALTER TABLE IF EXISTS auditoria_autorizaciones " +
+                    "DROP CONSTRAINT IF EXISTS auditoria_autorizaciones_tipo_operacion_check"
+            );
+        } catch (Exception e) {
+            log.debug("No fue necesario eliminar constraint previo de auditoria_autorizaciones: {}", e.getMessage());
+        }
     }
 
     private void inicializarPlanesOficiales() {

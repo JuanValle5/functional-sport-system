@@ -15,4 +15,6 @@ public interface PagoRepository extends JpaRepository<Pago, UUID> {
     List<Pago> findByTurnoCajaIdAndEstadoOrderByFechaHoraPagoDesc(UUID turnoCajaId, EstadoPago estado);
 
     Optional<Pago> findFirstByMembresiaIdAndEstado(UUID membresiaId, EstadoPago estado);
+
+    List<Pago> findByClienteId(UUID clienteId);
 }

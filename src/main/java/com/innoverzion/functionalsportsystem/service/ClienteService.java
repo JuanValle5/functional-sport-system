@@ -1,13 +1,13 @@
 package com.innoverzion.functionalsportsystem.service;
 
-import com.innoverzion.functionalsportsystem.domain.entity.Cliente;
-import com.innoverzion.functionalsportsystem.domain.entity.HuellaBiometrica;
+import com.innoverzion.functionalsportsystem.domain.entity.*;
 import com.innoverzion.functionalsportsystem.domain.enums.EstadoCliente;
+import com.innoverzion.functionalsportsystem.domain.enums.TipoOperacionAuditoria;
+import com.innoverzion.functionalsportsystem.dto.auth.ValidarClaveAdminRequestDto;
 import com.innoverzion.functionalsportsystem.dto.cliente.*;
 import com.innoverzion.functionalsportsystem.exception.BusinessRuleException;
 import com.innoverzion.functionalsportsystem.exception.ResourceNotFoundException;
-import com.innoverzion.functionalsportsystem.repository.ClienteRepository;
-import com.innoverzion.functionalsportsystem.repository.HuellaBiometricaRepository;
+import com.innoverzion.functionalsportsystem.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -15,9 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -26,7 +24,13 @@ public class ClienteService {
 
     private final ClienteRepository clienteRepository;
     private final HuellaBiometricaRepository huellaBiometricaRepository;
+    private final RegistroAccesoRepository registroAccesoRepository;
+    private final MembresiaClienteRepository membresiaClienteRepository;
+    private final CongelamientoMembresiaRepository congelamientoMembresiaRepository;
+    private final PagoRepository pagoRepository;
+    private final TurnoCajaService turnoCajaService;
     private final BiometricCacheService biometricCacheService;
+    private final AutorizacionAdminService autorizacionAdminService;
 
     /**
      * Sección 4.1 y 4.3: Registro de cliente en frío con los campos obligatorios:
@@ -123,6 +127,74 @@ public class ClienteService {
         }
 
         return mapearADto(clienteRepository.save(cliente));
+    }
+
+    /**
+     * Elimina un cliente exigiendo obligatoriamente la contraseña de autorización del Administrador,
+     * registrando el evento en la bitácora de auditoría y limpiando sus registros dependientes.
+     */
+    @Transactional
+    public void eliminarCliente(UUID clienteId, EliminarClienteRequestDto request) {
+        Cliente cliente = obtenerEntidadPorId(clienteId);
+
+        String claveAdmin = request != null ? request.claveAdmin() : null;
+        UUID operadorId = request != null ? request.recepcionistaEnTurnoId() : null;
+        String motivo = (request != null && request.motivoEliminacion() != null && !request.motivoEliminacion().isBlank())
+                ? request.motivoEliminacion().trim()
+                : "Eliminación de socio: " + cliente.getNombres() + " " + cliente.getApellidos()
+                        + " (" + cliente.getNumeroDocumento() + ")";
+
+        autorizacionAdminService.validarClaveYRegistrarAuditoria(
+                new ValidarClaveAdminRequestDto(
+                        claveAdmin,
+                        operadorId,
+                        TipoOperacionAuditoria.ELIMINACION_CLIENTE,
+                        "CLIENTES",
+                        cliente.getId(),
+                        cliente.getTipoDocumento() + " " + cliente.getNumeroDocumento() + " - "
+                                + cliente.getNombres() + " " + cliente.getApellidos(),
+                        "ELIMINADO",
+                        motivo
+                )
+        );
+
+        // 1. Eliminar registros de acceso y huellas
+        registroAccesoRepository.deleteByClienteId(clienteId);
+        huellaBiometricaRepository.deleteByClienteId(clienteId);
+
+        // 2. Eliminar pagos asociados y recalcular totales de los turnos de caja afectados
+        List<Pago> pagosCliente = pagoRepository.findByClienteId(clienteId);
+        Set<TurnoCaja> turnosAfectados = new HashSet<>();
+        for (Pago p : pagosCliente) {
+            turnosAfectados.add(p.getTurnoCaja());
+        }
+        if (!pagosCliente.isEmpty()) {
+            pagoRepository.deleteAll(pagosCliente);
+            pagoRepository.flush();
+            for (TurnoCaja turno : turnosAfectados) {
+                turnoCajaService.recalcularTotalesTurno(turno);
+            }
+        }
+
+        // 3. Eliminar congelamientos y membresías asociadas
+        List<MembresiaCliente> membresias = membresiaClienteRepository.findByClienteIdOrderByCreatedAtDesc(clienteId);
+        for (MembresiaCliente m : membresias) {
+            List<CongelamientoMembresia> congelamientos = congelamientoMembresiaRepository
+                    .findByMembresiaIdOrderByCreatedAtDesc(m.getId());
+            if (!congelamientos.isEmpty()) {
+                congelamientoMembresiaRepository.deleteAll(congelamientos);
+            }
+        }
+        if (!membresias.isEmpty()) {
+            membresiaClienteRepository.deleteAll(membresias);
+        }
+
+        // 4. Eliminar el cliente y sincronizar la caché biométrica en RAM
+        clienteRepository.delete(cliente);
+        biometricCacheService.sincronizarCacheDesdeBaseDeDatos();
+
+        log.info("Cliente eliminado del sistema: {} {} ({})",
+                cliente.getNombres(), cliente.getApellidos(), cliente.getNumeroDocumento());
     }
 
     /**

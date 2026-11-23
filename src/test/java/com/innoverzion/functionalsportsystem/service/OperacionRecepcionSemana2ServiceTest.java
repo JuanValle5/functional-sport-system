@@ -243,15 +243,6 @@ class OperacionRecepcionSemana2ServiceTest {
 
         when(membresiaClienteRepository.findById(membresiaId)).thenReturn(Optional.of(membresia));
         when(matrizPermisosService.obtenerUsuarioActivo(recepcionistaId)).thenReturn(recepcionista);
-        when(autorizacionAdminService.validarClaveYRegistrarAuditoria(any())).thenReturn(
-                new AuditoriaAutorizacionResponseDto(
-                        UUID.randomUUID(), adminId, "Jhorman Admin", recepcionistaId,
-                        "Recepcionista Mañana", TipoOperacionAuditoria.CONGELAMIENTO_MEDICO,
-                        "MEMBRESIAS_CLIENTE", membresiaId, "ACTIVA", "CONGELADA",
-                        "Certificado EPS Sura", LocalDateTime.now()
-                )
-        );
-        when(usuarioSistemaRepository.findById(adminId)).thenReturn(Optional.of(admin));
         when(congelamientoMembresiaRepository.save(any(CongelamientoMembresia.class))).thenAnswer(inv -> {
             CongelamientoMembresia c = inv.getArgument(0);
             c.setId(UUID.randomUUID());

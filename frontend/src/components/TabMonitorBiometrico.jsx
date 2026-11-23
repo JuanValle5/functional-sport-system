@@ -31,6 +31,18 @@ export default function TabMonitorBiometrico({ mostrarAlerta }) {
 
   useEffect(() => {
     cargarDatosMonitor();
+    let fechaActualStr = new Date().toLocaleDateString('es-CO');
+
+    // Si el computador queda encendido al cambiar de día (00:00), reinicia el monitor en cero automáticamente
+    const verificadorCambioDeDia = setInterval(() => {
+      const nuevaFechaStr = new Date().toLocaleDateString('es-CO');
+      if (nuevaFechaStr !== fechaActualStr) {
+        fechaActualStr = nuevaFechaStr;
+        setUltimoResultado(null);
+        cargarDatosMonitor();
+      }
+    }, 30000);
+
     const evtSource = new EventSource(obtenerUrlStreamSse());
     evtSource.addEventListener('validacion-acceso', (event) => {
       try {
@@ -41,7 +53,10 @@ export default function TabMonitorBiometrico({ mostrarAlerta }) {
         console.error(e);
       }
     });
-    return () => evtSource.close();
+    return () => {
+      clearInterval(verificadorCambioDeDia);
+      evtSource.close();
+    };
   }, []);
 
   const handleValidarHuella = async (e) => {
@@ -337,7 +352,7 @@ export default function TabMonitorBiometrico({ mostrarAlerta }) {
           <div className="card-header">
             <div className="card-title">
               <img src="/logos/web-monograma-fs-neon.png" alt="FS" style={{ height: '18px' }} />
-              Bitácora de Marcaciones Recientes
+              Ingresos y Marcaciones del Día de Hoy ({historial.length})
             </div>
             <button
               type="button"
@@ -364,11 +379,11 @@ export default function TabMonitorBiometrico({ mostrarAlerta }) {
                 {historial.length === 0 ? (
                   <tr>
                     <td colSpan="6" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-                      Aún no se han registrado marcaciones de acceso.
+                      Aún no se han registrado entradas en el día de hoy.
                     </td>
                   </tr>
                 ) : (
-                  historial.slice(0, 14).map((item) => (
+                  historial.map((item) => (
                     <tr key={item.registroAccesoId}>
                       <td>
                         {item.fechaHoraExacta

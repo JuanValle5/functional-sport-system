@@ -191,6 +191,35 @@ html, body {
   border-top: 1px solid var(--border-color);
 }
 
+.sidebar-monitor-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  border-radius: 10px;
+  border: 1.5px solid var(--brand-neon-border);
+  background: var(--brand-neon-soft);
+  color: var(--brand-neon);
+  font-weight: 800;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  text-decoration: none;
+  text-align: center;
+  line-height: 1.25;
+  white-space: normal;
+  transition: all 0.16s ease;
+}
+
+.sidebar-monitor-btn:hover {
+  background: var(--brand-neon);
+  border-color: var(--brand-neon);
+  color: #050705;
+  box-shadow: 0 4px 16px var(--brand-neon-glow);
+}
+
 .operator-card {
   display: flex;
   align-items: center;

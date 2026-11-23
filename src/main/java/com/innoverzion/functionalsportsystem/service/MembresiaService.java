@@ -125,7 +125,8 @@ public class MembresiaService {
 
     /**
      * Regla 1.5: Política de congelamiento exclusivo en caso de salud o enfermedad,
-     * debiendo contar obligatoriamente con Certificado Médico y autorización de Administrador.
+     * debiendo contar obligatoriamente con Certificado Médico.
+     * Permitido directamente para el Recepcionista o Administrador en turno.
      */
     @Transactional
     public CongelamientoResponseDto congelarMembresiaPorSalud(
@@ -153,31 +154,15 @@ public class MembresiaService {
             );
         }
 
-        UsuarioSistema recepcionista = matrizPermisosService.obtenerUsuarioActivo(request.recepcionistaEnTurnoId());
-
-        AuditoriaAutorizacionResponseDto auditoria = autorizacionAdminService.validarClaveYRegistrarAuditoria(
-                new ValidarClaveAdminRequestDto(
-                        request.claveAdmin(),
-                        recepcionista.getId(),
-                        TipoOperacionAuditoria.CONGELAMIENTO_MEDICO,
-                        "MEMBRESIAS_CLIENTE",
-                        membresia.getId(),
-                        "estado=ACTIVA, vencimiento=" + membresia.getFechaVencimientoActual(),
-                        "estado=CONGELADA, certificado=" + request.referenciaCertificadoMedico(),
-                        "Congelamiento por salud con certificado médico: " + request.referenciaCertificadoMedico()
-                )
-        );
-
-        UsuarioSistema adminAutorizador = usuarioSistemaRepository.findById(auditoria.adminUsuarioId())
-                .orElseThrow(() -> new ResourceNotFoundException("Administrador no encontrado."));
+        UsuarioSistema operador = matrizPermisosService.obtenerUsuarioActivo(request.recepcionistaEnTurnoId());
 
         membresia.setEstado(EstadoMembresia.CONGELADA);
         membresiaClienteRepository.save(membresia);
 
         CongelamientoMembresia congelamiento = CongelamientoMembresia.builder()
                 .membresia(membresia)
-                .registradoPorUsuario(recepcionista)
-                .autorizadoPorAdmin(adminAutorizador)
+                .registradoPorUsuario(operador)
+                .autorizadoPorAdmin(operador)
                 .fechaInicio(LocalDate.now())
                 .fechaFinEstimada(request.fechaFinEstimada())
                 .diasReconocidos(0)
@@ -189,8 +174,8 @@ public class MembresiaService {
                 .build();
 
         CongelamientoMembresia guardado = congelamientoMembresiaRepository.save(congelamiento);
-        log.info("Membresía {} CONGELADA por salud. Certificado médico: {}",
-                membresia.getId(), guardado.getReferenciaCertificadoMedico());
+        log.info("Membresía {} CONGELADA por salud por {}. Certificado médico: {}",
+                membresia.getId(), operador.getUsername(), guardado.getReferenciaCertificadoMedico());
 
         return mapearCongelamientoADto(guardado);
     }

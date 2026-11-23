@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -44,6 +45,15 @@ public class ClienteController {
             @RequestBody ActualizarClienteRequestDto request
     ) {
         return ResponseEntity.ok(clienteService.actualizarCliente(id, request));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Map<String, String>> eliminarCliente(
+            @PathVariable UUID id,
+            @RequestBody EliminarClienteRequestDto request
+    ) {
+        clienteService.eliminarCliente(id, request);
+        return ResponseEntity.ok(Map.of("mensaje", "Cliente eliminado exitosamente con autorización de Administrador."));
     }
 
     @PostMapping("/{id}/huellas")

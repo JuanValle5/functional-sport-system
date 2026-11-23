@@ -95,6 +95,7 @@ export default function App() {
 
           {activeTab === 'clientes' && (
             <TabClientesYHuellas
+              usuario={usuarioActual}
               mostrarAlerta={mostrarAlerta}
               onIrAVenderPlan={handleIrAVenderPlan}
             />

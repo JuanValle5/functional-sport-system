@@ -28,5 +28,9 @@ public interface RegistroAccesoRepository extends JpaRepository<RegistroAcceso, 
 
     long countByFechaAccesoAndColorSemaforo(LocalDate fechaAcceso, ColorSemaforo colorSemaforo);
 
+    List<RegistroAcceso> findByFechaAccesoOrderByFechaHoraExactaDesc(LocalDate fechaAcceso);
+
     List<RegistroAcceso> findTop50ByOrderByFechaHoraExactaDesc();
+
+    void deleteByClienteId(UUID clienteId);
 }
