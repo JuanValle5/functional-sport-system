@@ -1,0 +1,66 @@
+================================================================================
+GUIA RAPIDA DE INSTALACION EN EL PORTATIL DE RECEPCION (WINDOWS 64-BITS)
+Cliente: Funcional Sport Col (Admin: Jhorman)
+Equipo: AMD E1-6015 APU 1.40 GHz | 8 GB RAM | Windows 64 bits
+================================================================================
+
+CONTENIDO DE ESTA CARPETA (Copiar completa en C:\FuncionalSport):
+  1. functional-sport-system.jar      (Backend Spring Boot + Frontend React todo-en-uno)
+  2. INICIAR_FUNCIONAL_SPORT.bat      (Inicia el sistema y abre el navegador con 1 clic)
+  3. ABRIR_PANTALLA_CLIENTE.bat       (Abre el 2do Monitor del Deportista)
+  4. PASOS_INSTALACION_WINDOWS.txt    (Esta guia)
+
+--------------------------------------------------------------------------------
+PASO 1: INSTALAR JAVA 21 (Solo se hace una unica vez - Toma 2 minutos)
+--------------------------------------------------------------------------------
+1. Descargar e instalar Eclipse Temurin JRE o JDK 21 (Windows x64 .msi):
+   https://adoptium.net/es/temurin/releases/?version=21
+2. Durante el instalador, darle "Siguiente -> Instalar -> Finalizar".
+
+--------------------------------------------------------------------------------
+PASO 2: INSTALAR POSTGRESQL Y CREAR LA BASE DE DATOS "fs_db" (Toma 3 minutos)
+--------------------------------------------------------------------------------
+1. Instalar PostgreSQL (version 16 o 17 para Windows x64).
+2. Cuando el instalador pida la contrasena del superusuario (postgres), poner:
+   1287985dbc
+   (NOTA: Si decides poner otra contrasena distinta en PostgreSQL, simplemente abre
+   el archivo INICIAR_FUNCIONAL_SPORT.bat con clic derecho -> Editar en Bloc de Notas
+   y cambia la linea "set DB_PASS=1287985dbc" por la contrasena que hayas puesto).
+3. Dejar el puerto por defecto: 5432.
+4. Abrir pgAdmin 4 (o SQL Shell psql) y crear la base de datos vacia ejecutando:
+   CREATE DATABASE fs_db;
+   (No necesitas correr ningun otro script SQL: al abrir el programa por primera vez,
+   el sistema crea automaticamente las 11 tablas, los 4 planes oficiales de $10.000,
+   $50.000, $70.000 y $80.000, y el usuario Administrador de Jhorman).
+
+--------------------------------------------------------------------------------
+PASO 3: CREAR ACCESO DIRECTO EN EL ESCRITORIO Y ARRANCAR
+--------------------------------------------------------------------------------
+1. Copiar esta carpeta en el disco local, por ejemplo en:
+   C:\FuncionalSport
+2. Hacer clic derecho sobre "INICIAR_FUNCIONAL_SPORT.bat" ->
+   "Enviar a" -> "Escritorio (crear acceso directo)".
+3. Darle doble clic al acceso directo "INICIAR_FUNCIONAL_SPORT":
+   - Se abrira una ventana negra (servidor local optimizado para bajo consumo de CPU/RAM).
+   - A los 7 segundos se abrira solo el navegador en:
+     http://localhost:8080
+
+--------------------------------------------------------------------------------
+CREDENCIALES INICIALES DE ACCESO
+--------------------------------------------------------------------------------
+- Usuario Administrador:  jhorman
+- Contrasena Inicial:     ADMIN_JHORMAN_2026
+
+--------------------------------------------------------------------------------
+OPERACION DE LA PRIMERA ENTREGA (ENROLAMIENTO EN FRIO EN 2 PASOS)
+--------------------------------------------------------------------------------
+1. Iniciar sesion e ir en el menu izquierdo a "Socios y Huellas".
+2. A medida que cada deportista llegue a entrenar, registrar en "Nuevo Socio":
+   - Tipo y Numero de Documento (Cedula / TI)
+   - Nombres y Apellidos
+   - Celular / WhatsApp
+   y hacer clic en "Guardar Socio".
+3. Cuando a ese socio se le venza su mes actual del cuaderno/Excel y venga a pagar,
+   primero abrir el turno del dia en "Caja y Turnos" y luego hacer clic en el boton
+   verde "Plan" junto al nombre del socio para facturarle su nueva mensualidad.
+================================================================================

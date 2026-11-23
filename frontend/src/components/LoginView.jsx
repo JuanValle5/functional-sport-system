@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { peticionApi } from '../services/api';
 
 export default function LoginView({ onLoginSuccess }) {
-  const [username, setUsername] = useState('jhorman');
-  const [password, setPassword] = useState('ADMIN_JHORMAN_2026');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -58,7 +58,8 @@ export default function LoginView({ onLoginSuccess }) {
             type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="Ej: jhorman o recepcion_manana"
+            placeholder="Ingrese su usuario"
+            autoComplete="username"
             required
           />
         </div>
@@ -69,7 +70,8 @@ export default function LoginView({ onLoginSuccess }) {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Contraseña del operador"
+            placeholder="Ingrese su contraseña"
+            autoComplete="current-password"
             required
           />
         </div>
@@ -82,19 +84,6 @@ export default function LoginView({ onLoginSuccess }) {
         >
           {loading ? 'Verificando...' : 'Ingresar a la Plataforma'}
         </button>
-
-        <div
-          style={{
-            marginTop: '1.25rem',
-            paddingTop: '1rem',
-            borderTop: '1px solid var(--border-color)',
-            fontSize: '0.75rem',
-            color: 'var(--text-secondary)'
-          }}
-        >
-          Acceso inicial Admin: <code style={{ color: 'var(--brand-neon)' }}>jhorman</code> /{' '}
-          <code style={{ color: 'var(--brand-neon)' }}>ADMIN_JHORMAN_2026</code>
-        </div>
       </form>
     </div>
   );
