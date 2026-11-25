@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { peticionApi } from '../services/api';
 
 const DEDOS_DISPONIBLES = [
@@ -8,6 +8,29 @@ const DEDOS_DISPONIBLES = [
   { codigo: 'PULGAR_IZQ', nombre: 'Pulgar Izq.' },
   { codigo: 'MEDIO_DER', nombre: 'Medio Der.' }
 ];
+
+const ESTADO_SOCIO_MAP = {
+  ACTIVO: { label: 'Activo', color: 'var(--semaforo-verde)' },
+  INACTIVO: { label: 'Inactivo', color: 'var(--socios-text-sub)' },
+  SUSPENDIDO: { label: 'Suspendido', color: 'var(--semaforo-rojo)' },
+  VENCIDO: { label: 'Vencido', color: 'var(--semaforo-rojo)' }
+};
+
+const CHIPS_FILTRO_SOCIOS = [
+  { id: 'TODOS', label: 'Todos' },
+  { id: 'ACTIVOS', label: 'Activos' },
+  { id: 'SIN_HUELLA', label: 'Sin huella' },
+  { id: 'VENCIDOS', label: 'Vencidos' }
+];
+
+function obtenerInicialesSocio(c) {
+  const n = (c.nombres || c.nombreCompleto || '').trim();
+  const a = (c.apellidos || '').trim();
+  if (n && a) return `${n[0]}${a[0]}`.toUpperCase();
+  const partes = n.split(/\s+/).filter(Boolean);
+  if (partes.length >= 2) return `${partes[0][0]}${partes[1][0]}`.toUpperCase();
+  return (n.slice(0, 2) || 'FS').toUpperCase();
+}
 
 export default function TabClientesYHuellas({
   usuario,
@@ -23,8 +46,15 @@ export default function TabClientesYHuellas({
 
   const [clientes, setClientes] = useState([]);
   const [filtroBusqueda, setFiltroBusqueda] = useState('');
+  const [filtroChip, setFiltroChip] = useState('TODOS');
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [menuAbiertoId, setMenuAbiertoId] = useState(null);
+  const tablaRef = useRef(null);
+
+  const SOCIOS_POR_PAGINA = 6;
 
   const [clienteEnrolar, setClienteEnrolar] = useState(null);
+  const [mostrarModalRegistro, setMostrarModalRegistro] = useState(false);
   const [posicionDedo, setPosicionDedo] = useState('INDICE_DER');
   const [plantillaHuella, setPlantillaHuella] = useState('');
 
@@ -49,6 +79,31 @@ export default function TabClientesYHuellas({
     cargarClientes();
   }, []);
 
+  useEffect(() => {
+    if (!menuAbiertoId) return undefined;
+
+    const handleClickOutside = (event) => {
+      if (tablaRef.current && !tablaRef.current.contains(event.target)) {
+        setMenuAbiertoId(null);
+      } else if (!event.target.closest('.kebab-wrapper')) {
+        setMenuAbiertoId(null);
+      }
+    };
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setMenuAbiertoId(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [menuAbiertoId]);
+
   const handleRegistrar = async (e) => {
     e.preventDefault();
     try {
@@ -69,6 +124,7 @@ export default function TabClientesYHuellas({
       setApellidos('');
       setTelefonoWhatsapp('');
       setObservaciones('');
+      setMostrarModalRegistro(false);
       setClienteEnrolar(creado);
       setPlantillaHuella(`ZKTECO_${creado.numeroDocumento}_${posicionDedo}`);
       await cargarClientes();
@@ -160,29 +216,396 @@ export default function TabClientesYHuellas({
     }
   };
 
-  const clientesFiltrados = clientes.filter((c) => {
+  const conteosChip = useMemo(() => {
+    return {
+      TODOS: clientes.length,
+      ACTIVOS: clientes.filter((c) => c.estado === 'ACTIVO').length,
+      SIN_HUELLA: clientes.filter((c) => !(c.cantidadHuellasActivas > 0)).length,
+      VENCIDOS: clientes.filter(
+        (c) =>
+          c.estado === 'VENCIDO' ||
+          c.estado === 'SUSPENDIDO' ||
+          c.estado === 'INACTIVO'
+      ).length
+    };
+  }, [clientes]);
+
+  const clientesFiltrados = useMemo(() => {
     const q = filtroBusqueda.trim().toLowerCase();
-    if (!q) return true;
-    return (
-      c.nombreCompleto.toLowerCase().includes(q) ||
-      c.numeroDocumento.toLowerCase().includes(q) ||
-      (c.telefonoWhatsapp && c.telefonoWhatsapp.toLowerCase().includes(q))
-    );
-  });
+    return clientes.filter((c) => {
+      const coincideTexto =
+        !q ||
+        c.nombreCompleto.toLowerCase().includes(q) ||
+        c.numeroDocumento.toLowerCase().includes(q) ||
+        (c.telefonoWhatsapp && c.telefonoWhatsapp.toLowerCase().includes(q));
+
+      if (!coincideTexto) return false;
+
+      if (filtroChip === 'ACTIVOS') return c.estado === 'ACTIVO';
+      if (filtroChip === 'SIN_HUELLA') return !(c.cantidadHuellasActivas > 0);
+      if (filtroChip === 'VENCIDOS') {
+        return (
+          c.estado === 'VENCIDO' ||
+          c.estado === 'SUSPENDIDO' ||
+          c.estado === 'INACTIVO'
+        );
+      }
+      return true;
+    });
+  }, [clientes, filtroBusqueda, filtroChip]);
+
+  const totalPaginas = Math.max(1, Math.ceil(clientesFiltrados.length / SOCIOS_POR_PAGINA));
+  const paginaSegura = Math.min(paginaActual, totalPaginas);
+  const indiceInicio = (paginaSegura - 1) * SOCIOS_POR_PAGINA;
+  const clientesPaginados = clientesFiltrados.slice(
+    indiceInicio,
+    indiceInicio + SOCIOS_POR_PAGINA
+  );
 
   return (
-    <section className="grid-layout-asymmetric">
-      {/* Columna Izquierda: Registro + Enrolamiento */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.35rem' }}>
-        <div className="card">
-          <div className="card-header">
-            <div className="card-title">
-              <img src="/logos/web-monograma-fs-neon.png" alt="FS" style={{ height: '18px' }} />
-              Nuevo Socio (Registro en Frío)
-            </div>
+    <section className="tab-viewport">
+      {/* Directorio de Socios a Ancho Completo (Sin Scroll Vertical) */}
+      <div className="card card-fill" ref={tablaRef}>
+        <div className="socios-header-bar">
+          <div className="card-title">
+            <img src="/logos/web-monograma-fs-neon.png" alt="FS" style={{ height: '16px' }} />
+            Directorio de Socios ({clientesFiltrados.length})
           </div>
 
-          <form onSubmit={handleRegistrar}>
+          <div className="socios-header-controls">
+            <div className="socios-search-wrap">
+              <svg
+                className="socios-search-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                type="text"
+                className="socios-search-input"
+                value={filtroBusqueda}
+                onChange={(e) => {
+                  setFiltroBusqueda(e.target.value);
+                  setPaginaActual(1);
+                }}
+                placeholder="Buscar por nombre, cédula o celular..."
+                aria-label="Buscar socio por nombre, cédula o celular"
+              />
+            </div>
+
+            <button
+              type="button"
+              className="btn btn-success"
+              onClick={() => setMostrarModalRegistro(true)}
+            >
+              + Nuevo Socio
+            </button>
+          </div>
+        </div>
+
+        <div className="socios-filter-chips" role="tablist" aria-label="Filtrar directorio de socios">
+          {CHIPS_FILTRO_SOCIOS.map((chip) => (
+            <button
+              key={chip.id}
+              type="button"
+              role="tab"
+              aria-selected={filtroChip === chip.id}
+              className={`socios-chip ${filtroChip === chip.id ? 'active' : ''}`}
+              onClick={() => {
+                setFiltroChip(chip.id);
+                setPaginaActual(1);
+              }}
+            >
+              <span>{chip.label}</span>
+              <span className="socios-chip-count">({conteosChip[chip.id] ?? 0})</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="socios-table-wrap">
+          <table className="socios-table">
+            <colgroup>
+              <col className="col-socio" />
+              <col className="col-whatsapp" />
+              <col className="col-biometria" />
+              <col className="col-estado" />
+              <col className="col-acciones" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Socio</th>
+                <th>WhatsApp</th>
+                <th>Biometría</th>
+                <th>Estado</th>
+                <th className="th-acciones">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {clientesFiltrados.length === 0 ? (
+                <tr>
+                  <td colSpan="5" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                    No se encontraron socios con ese criterio.
+                  </td>
+                </tr>
+              ) : (
+                clientesPaginados.map((c) => {
+                  const socioKey = c.id || c.numeroDocumento;
+                  const tieneHuella = c.cantidadHuellasActivas > 0;
+                  const textoHuellas = tieneHuella
+                    ? `${c.cantidadHuellasActivas} huella${
+                        c.cantidadHuellasActivas === 1 ? '' : 's'
+                      }`
+                    : 'Sin huella';
+                  const estadoInfo = ESTADO_SOCIO_MAP[c.estado] || {
+                    label: c.estado || '—',
+                    color: 'var(--socios-text-sub)'
+                  };
+                  const menuAbierto = menuAbiertoId === socioKey;
+
+                  return (
+                    <tr key={socioKey}>
+                      <td>
+                        <div className="socio-cell">
+                          <span className="socio-avatar" aria-hidden="true">
+                            {obtenerInicialesSocio(c)}
+                          </span>
+                          <div className="socio-meta">
+                            <div className="socio-name" title={c.nombreCompleto}>
+                              {c.nombreCompleto}
+                            </div>
+                            <div className="socio-doc">
+                              {c.tipoDocumento} {c.numeroDocumento}
+                              {c.observaciones ? ` · ${c.observaciones}` : ''}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="cell-nowrap" data-label="WhatsApp">
+                        {c.telefonoWhatsapp || '—'}
+                      </td>
+
+                      <td className="cell-nowrap" data-label="Biometría">
+                        <span
+                          className={`biometria-pill ${
+                            tieneHuella ? 'has-finger' : 'no-finger'
+                          }`}
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            aria-hidden="true"
+                          >
+                            <path d="M12 11c0 3.517-1.009 6.799-2.753 9.571" />
+                            <path d="M8 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3" />
+                            <path d="M3 15.364c.64-1.319 1-2.8 1-4.364a8 8 0 0116 0c0 2.473-.345 4.866-.99 7.132" />
+                          </svg>
+                          <span>{textoHuellas}</span>
+                        </span>
+                      </td>
+
+                      <td className="cell-nowrap" data-label="Estado">
+                        <span className="estado-indicator">
+                          <span
+                            className="estado-dot"
+                            style={{ backgroundColor: estadoInfo.color }}
+                            aria-hidden="true"
+                          />
+                          <span>{estadoInfo.label}</span>
+                        </span>
+                      </td>
+
+                      <td className="acciones-cell" data-label="Acciones">
+                        <div className="acciones-toolbar">
+                          <button
+                            type="button"
+                            className="btn-action-plan"
+                            onClick={() => onIrAVenderPlan(c)}
+                          >
+                            Plan
+                          </button>
+
+                          <button
+                            type="button"
+                            className="btn-icon-ghost"
+                            title="Enrolar huella"
+                            aria-label={`Enrolar huella de ${c.nombreCompleto}`}
+                            onClick={() => seleccionarClienteParaHuella(c)}
+                          >
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden="true"
+                            >
+                              <path d="M12 11c0 3.517-1.009 6.799-2.753 9.571" />
+                              <path d="M8 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3" />
+                              <path d="M3 15.364c.64-1.319 1-2.8 1-4.364a8 8 0 0116 0c0 2.473-.345 4.866-.99 7.132" />
+                            </svg>
+                          </button>
+
+                          <button
+                            type="button"
+                            className="btn-icon-ghost"
+                            title="Editar socio"
+                            aria-label={`Editar datos de ${c.nombreCompleto}`}
+                            onClick={() => setClienteAEditar({ ...c })}
+                          >
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden="true"
+                            >
+                              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                            </svg>
+                          </button>
+
+                          <div className="kebab-wrapper">
+                            <button
+                              type="button"
+                              className="btn-icon-ghost"
+                              title="Más acciones"
+                              aria-label={`Más acciones para ${c.nombreCompleto}`}
+                              aria-haspopup="menu"
+                              aria-expanded={menuAbierto}
+                              onClick={() =>
+                                setMenuAbiertoId((prev) =>
+                                  prev === socioKey ? null : socioKey
+                                )
+                              }
+                            >
+                              <svg
+                                viewBox="0 0 24 24"
+                                fill="currentColor"
+                                aria-hidden="true"
+                              >
+                                <circle cx="5" cy="12" r="1.8" />
+                                <circle cx="12" cy="12" r="1.8" />
+                                <circle cx="19" cy="12" r="1.8" />
+                              </svg>
+                            </button>
+
+                            {menuAbierto && (
+                              <div
+                                className="kebab-dropdown"
+                                role="menu"
+                                aria-label={`Opciones de ${c.nombreCompleto}`}
+                              >
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  className="kebab-menuitem"
+                                  onClick={() => {
+                                    setMenuAbiertoId(null);
+                                    setClienteAEliminar(c);
+                                  }}
+                                >
+                                  <svg
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    aria-hidden="true"
+                                  >
+                                    <polyline points="3 6 5 6 21 6" />
+                                    <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                                  </svg>
+                                  <span>Eliminar</span>
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="pagination-bar">
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+            {clientesFiltrados.length === 0 ? (
+              '0 socios en vista'
+            ) : (
+              <>
+                Mostrando{' '}
+                <strong style={{ color: 'var(--text-primary)' }}>
+                  {indiceInicio + 1}–{Math.min(indiceInicio + SOCIOS_POR_PAGINA, clientesFiltrados.length)}
+                </strong>{' '}
+                de <strong style={{ color: 'var(--brand-neon)' }}>{clientesFiltrados.length}</strong>{' '}
+                socios
+              </>
+            )}
+          </span>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              disabled={paginaSegura <= 1}
+              onClick={() => setPaginaActual((p) => Math.max(1, p - 1))}
+            >
+              ← Anterior
+            </button>
+
+            <span
+              style={{
+                fontSize: '0.75rem',
+                fontWeight: 800,
+                padding: '0.2rem 0.55rem',
+                color: 'var(--text-primary)'
+              }}
+            >
+              Página {paginaSegura} de {totalPaginas}
+            </span>
+
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              disabled={paginaSegura >= totalPaginas}
+              onClick={() => setPaginaActual((p) => Math.min(totalPaginas, p + 1))}
+            >
+              Siguiente →
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Modal: Nuevo Socio (Registro en Frío) */}
+      {mostrarModalRegistro && (
+        <div className="modal-backdrop">
+          <form className="modal-card" onSubmit={handleRegistrar}>
+            <div className="card-header">
+              <div className="card-title">
+                <img src="/logos/web-monograma-fs-neon.png" alt="FS" style={{ height: '18px' }} />
+                Nuevo Socio (Registro en Frío)
+              </div>
+            </div>
+
             <div className="form-row-2">
               <div className="form-group">
                 <label>Tipo Doc. *</label>
@@ -252,217 +675,116 @@ export default function TabClientesYHuellas({
               />
             </div>
 
-            <button type="submit" className="btn btn-success" style={{ width: '100%' }}>
-              Guardar Socio y Pasar a Huella
-            </button>
+            <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => setMostrarModalRegistro(false)}
+              >
+                Cancelar
+              </button>
+              <button type="submit" className="btn btn-success">
+                Guardar Socio y Pasar a Huella
+              </button>
+            </div>
           </form>
         </div>
+      )}
 
-        {/* Tarjeta de Enrolamiento Biométrico */}
-        <div className="card">
-          <div className="card-header">
-            <div className="card-title">
-              <img src="/logos/web-monograma-fs-neon.png" alt="FS" style={{ height: '18px' }} />
-              Enrolamiento Biométrico ZKTeco
+      {/* Modal: Enrolamiento Biométrico */}
+      {clienteEnrolar && (
+        <div className="modal-backdrop">
+          <form className="modal-card" onSubmit={handleEnrolarHuella}>
+            <div className="card-header">
+              <div className="card-title">
+                <img src="/logos/web-monograma-fs-neon.png" alt="FS" style={{ height: '18px' }} />
+                Enrolamiento Biométrico
+              </div>
             </div>
-          </div>
 
-          {!clienteEnrolar ? (
             <div
               style={{
-                padding: '1.25rem',
-                textAlign: 'center',
-                color: 'var(--text-secondary)',
-                background: 'var(--bg-input)',
+                background: 'var(--brand-neon-soft)',
+                border: '1px solid var(--brand-neon)',
+                padding: '0.85rem 1rem',
                 borderRadius: '10px',
-                border: '1px dashed var(--border-color)',
-                fontSize: '0.85rem'
+                marginBottom: '1rem'
               }}
             >
-              Seleccione el botón <strong>"Huella"</strong> en cualquier socio del
-              directorio de la derecha (o registre uno nuevo) para enrolar su dedo en el
-              sensor USB ZKTeco.
+              <div style={{ fontWeight: 900, color: 'var(--brand-neon)' }}>
+                {clienteEnrolar.nombreCompleto}
+              </div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-primary)' }}>
+                Doc: {clienteEnrolar.numeroDocumento} • Huellas activas:{' '}
+                <strong>{clienteEnrolar.cantidadHuellasActivas} huella(s)</strong>
+              </div>
             </div>
-          ) : (
-            <form onSubmit={handleEnrolarHuella}>
-              <div
-                style={{
-                  background: 'var(--brand-neon-soft)',
-                  border: '1px solid var(--brand-neon)',
-                  padding: '0.85rem 1rem',
-                  borderRadius: '10px',
-                  marginBottom: '1rem'
-                }}
-              >
-                <div style={{ fontWeight: 900, color: 'var(--brand-neon)' }}>
-                  {clienteEnrolar.nombreCompleto}
-                </div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-primary)' }}>
-                  Doc: {clienteEnrolar.numeroDocumento} • Huellas activas:{' '}
-                  <strong>{clienteEnrolar.cantidadHuellasActivas} dedo(s)</strong>
-                </div>
-              </div>
 
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: '0.75rem',
-                  color: 'var(--text-secondary)',
-                  textTransform: 'uppercase',
-                  fontWeight: 700,
-                  marginBottom: '0.4rem'
-                }}
-              >
-                1. Seleccione el Dedo a Capturar
-              </label>
-              <div className="finger-pills">
-                {DEDOS_DISPONIBLES.map((d) => (
-                  <button
-                    key={d.codigo}
-                    type="button"
-                    className={`finger-pill ${
-                      posicionDedo === d.codigo ? 'selected' : ''
-                    }`}
-                    onClick={() => {
-                      setPosicionDedo(d.codigo);
-                      setPlantillaHuella(
-                        `ZKTECO_${clienteEnrolar.numeroDocumento}_${d.codigo}`
-                      );
-                    }}
-                  >
-                    {d.nombre}
-                  </button>
-                ))}
-              </div>
-
-              <div className="form-group">
-                <label>2. Plantilla Capturada del Sensor ZKTeco SilkID</label>
-                <input
-                  type="text"
-                  value={plantillaHuella}
-                  onChange={(e) => setPlantillaHuella(e.target.value)}
-                  placeholder="Plantilla biométrica..."
-                  required
-                />
-              </div>
-
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button type="submit" className="btn btn-success" style={{ flex: 1 }}>
-                  Guardar Huella en RAM
-                </button>
+            <label
+              style={{
+                display: 'block',
+                fontSize: '0.75rem',
+                color: 'var(--text-secondary)',
+                textTransform: 'uppercase',
+                fontWeight: 700,
+                marginBottom: '0.4rem'
+              }}
+            >
+              1. Seleccione el Dedo a Capturar
+            </label>
+            <div className="finger-pills">
+              {DEDOS_DISPONIBLES.map((d) => (
                 <button
+                  key={d.codigo}
                   type="button"
-                  className="btn btn-outline"
-                  onClick={() => onIrAVenderPlan(clienteEnrolar)}
+                  className={`finger-pill ${
+                    posicionDedo === d.codigo ? 'selected' : ''
+                  }`}
+                  onClick={() => {
+                    setPosicionDedo(d.codigo);
+                    setPlantillaHuella(
+                      `ZKTECO_${clienteEnrolar.numeroDocumento}_${d.codigo}`
+                    );
+                  }}
                 >
-                  Ir a Venderle Plan →
+                  {d.nombre}
                 </button>
-              </div>
-            </form>
-          )}
-        </div>
-      </div>
+              ))}
+            </div>
 
-      {/* Columna Derecha: Directorio Interactivo con Buscador Instantáneo */}
-      <div className="card">
-        <div className="card-header">
-          <div className="card-title">
-            <img src="/logos/web-monograma-fs-neon.png" alt="FS" style={{ height: '18px' }} />
-            Directorio de Socios ({clientesFiltrados.length})
-          </div>
-          <div style={{ width: '280px' }}>
-            <input
-              type="text"
-              value={filtroBusqueda}
-              onChange={(e) => setFiltroBusqueda(e.target.value)}
-              placeholder="Buscar por nombre, cédula o celular..."
-            />
-          </div>
-        </div>
+            <div className="form-group">
+              <label>2. Plantilla Capturada del Lector de Huella</label>
+              <input
+                type="text"
+                value={plantillaHuella}
+                onChange={(e) => setPlantillaHuella(e.target.value)}
+                placeholder="Plantilla biométrica..."
+                required
+              />
+            </div>
 
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Documento</th>
-                <th>Nombre Completo</th>
-                <th>WhatsApp</th>
-                <th>Biometría</th>
-                <th>Estado</th>
-                <th>Acciones Rápidas</th>
-              </tr>
-            </thead>
-            <tbody>
-              {clientesFiltrados.length === 0 ? (
-                <tr>
-                  <td colSpan="6" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-                    No se encontraron socios con ese criterio.
-                  </td>
-                </tr>
-              ) : (
-                clientesFiltrados.map((c) => (
-                  <tr key={c.id}>
-                    <td>
-                      <strong>{c.tipoDocumento}</strong> {c.numeroDocumento}
-                    </td>
-                    <td>
-                      <strong>{c.nombreCompleto}</strong>
-                      {c.observaciones && (
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                          {c.observaciones}
-                        </div>
-                      )}
-                    </td>
-                    <td>{c.telefonoWhatsapp}</td>
-                    <td>
-                      <span
-                        className={`semaforo-badge ${
-                          c.cantidadHuellasActivas > 0 ? 'badge-verde' : 'badge-amarillo'
-                        }`}
-                      >
-                        {c.cantidadHuellasActivas} dedo(s)
-                      </span>
-                    </td>
-                    <td>{c.estado}</td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-                        <button
-                          type="button"
-                          className="btn btn-outline btn-sm"
-                          onClick={() => seleccionarClienteParaHuella(c)}
-                        >
-                          Huella
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-success btn-sm"
-                          onClick={() => onIrAVenderPlan(c)}
-                        >
-                          Plan
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-outline btn-sm"
-                          onClick={() => setClienteAEditar({ ...c })}
-                        >
-                          Editar
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-danger btn-sm"
-                          onClick={() => setClienteAEliminar(c)}
-                        >
-                          Eliminar
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => setClienteEnrolar(null)}
+              >
+                Cerrar
+              </button>
+              <button type="submit" className="btn btn-success">
+                Guardar Huella
+              </button>
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => onIrAVenderPlan(clienteEnrolar)}
+              >
+                Ir a Venderle Plan →
+              </button>
+            </div>
+          </form>
         </div>
-      </div>
+      )}
 
       {/* Modal de Confirmación con Contraseña Admin para Eliminar Socio */}
       {clienteAEliminar && (

@@ -7,6 +7,7 @@ import TabClientesYHuellas from './components/TabClientesYHuellas.jsx';
 import TabMembresiasYCongelamientos from './components/TabMembresiasYCongelamientos.jsx';
 import TabTurnosCaja from './components/TabTurnosCaja.jsx';
 import TabGerenciaAdmin from './components/TabGerenciaAdmin.jsx';
+import TabPerfilOperador from './components/TabPerfilOperador.jsx';
 import { peticionApi } from './services/api.js';
 
 export default function App() {
@@ -122,6 +123,18 @@ export default function App() {
             <TabGerenciaAdmin
               usuario={usuarioActual}
               mostrarAlerta={mostrarAlerta}
+            />
+          )}
+
+          {activeTab === 'perfil' && (
+            <TabPerfilOperador
+              usuario={usuarioActual}
+              turnoAbierto={turnoAbierto}
+              onIrACaja={() => setActiveTab('caja')}
+              onIrAGerencia={
+                usuarioActual.rol === 'ADMIN' ? () => setActiveTab('admin') : null
+              }
+              onLogout={handleLogout}
             />
           )}
         </main>

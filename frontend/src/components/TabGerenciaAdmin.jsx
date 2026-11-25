@@ -6,11 +6,18 @@ export default function TabGerenciaAdmin({ usuario, mostrarAlerta }) {
   const [auditorias, setAuditorias] = useState([]);
   const [usuariosLista, setUsuariosLista] = useState([]);
 
+  const [paginaUsuarios, setPaginaUsuarios] = useState(1);
+  const [paginaAuditorias, setPaginaAuditorias] = useState(1);
+  const [mostrarModalOperador, setMostrarModalOperador] = useState(false);
+
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [nombreCompleto, setNombreCompleto] = useState('');
   const [numeroDocumento, setNumeroDocumento] = useState('');
   const [rol, setRol] = useState('RECEPCIONISTA');
+
+  const USUARIOS_POR_PAGINA = 6;
+  const AUDITORIAS_POR_PAGINA = 5;
 
   const cargarDatosAdmin = async () => {
     try {
@@ -52,6 +59,7 @@ export default function TabGerenciaAdmin({ usuario, mostrarAlerta }) {
       setPassword('');
       setNombreCompleto('');
       setNumeroDocumento('');
+      setMostrarModalOperador(false);
       await cargarDatosAdmin();
     } catch (err) {
       mostrarAlerta(err.message, 'error');
@@ -73,8 +81,24 @@ export default function TabGerenciaAdmin({ usuario, mostrarAlerta }) {
     }
   };
 
+  const totalPagUsuarios = Math.max(1, Math.ceil(usuariosLista.length / USUARIOS_POR_PAGINA));
+  const pagUsuariosSegura = Math.min(paginaUsuarios, totalPagUsuarios);
+  const inicioUsuarios = (pagUsuariosSegura - 1) * USUARIOS_POR_PAGINA;
+  const usuariosPaginados = usuariosLista.slice(
+    inicioUsuarios,
+    inicioUsuarios + USUARIOS_POR_PAGINA
+  );
+
+  const totalPagAuditorias = Math.max(1, Math.ceil(auditorias.length / AUDITORIAS_POR_PAGINA));
+  const pagAuditoriasSegura = Math.min(paginaAuditorias, totalPagAuditorias);
+  const inicioAuditorias = (pagAuditoriasSegura - 1) * AUDITORIAS_POR_PAGINA;
+  const auditoriasPaginadas = auditorias.slice(
+    inicioAuditorias,
+    inicioAuditorias + AUDITORIAS_POR_PAGINA
+  );
+
   return (
-    <section>
+    <section className="tab-viewport">
       <div className="kpi-grid">
         <div className="kpi-card">
           <div className="kpi-label">Socios Empadronados</div>
@@ -104,16 +128,243 @@ export default function TabGerenciaAdmin({ usuario, mostrarAlerta }) {
         </div>
       </div>
 
-      <div className="grid-layout-asymmetric">
-        <div className="card">
+      <div className="tab-split-fill">
+        {/* Columna Izquierda: Directorio Paginado de Operadores + Modal de Alta */}
+        <div className="card card-fill">
           <div className="card-header">
             <div className="card-title">
-              <img src="/logos/web-monograma-fs-neon.png" alt="FS" style={{ height: '18px' }} />
-              Nuevo Operador (Recepcionista / Admin)
+              <img src="/logos/web-monograma-fs-neon.png" alt="FS" style={{ height: '16px' }} />
+              Operadores del Sistema ({usuariosLista.length})
             </div>
+            <button
+              type="button"
+              className="btn btn-success btn-sm"
+              onClick={() => setMostrarModalOperador(true)}
+            >
+              + Nuevo Operador
+            </button>
           </div>
 
-          <form onSubmit={handleCrearUsuario}>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nombre Completo</th>
+                  <th>Usuario</th>
+                  <th>Documento</th>
+                  <th>Rol</th>
+                </tr>
+              </thead>
+              <tbody>
+                {usuariosLista.length === 0 ? (
+                  <tr>
+                    <td colSpan="4" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                      No hay operadores registrados.
+                    </td>
+                  </tr>
+                ) : (
+                  usuariosPaginados.map((u) => (
+                    <tr key={u.id}>
+                      <td>
+                        <strong>{u.nombreCompleto}</strong>
+                      </td>
+                      <td style={{ color: 'var(--brand-neon)', fontWeight: 700 }}>
+                        @{u.username}
+                      </td>
+                      <td>{u.numeroDocumento || '—'}</td>
+                      <td>
+                        <span
+                          className={`semaforo-badge ${
+                            u.rol === 'ADMIN' ? 'badge-verde' : 'badge-neutral'
+                          }`}
+                        >
+                          {u.rol}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="pagination-bar">
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+              {usuariosLista.length === 0 ? (
+                '0 operadores'
+              ) : (
+                <>
+                  Mostrando{' '}
+                  <strong style={{ color: 'var(--text-primary)' }}>
+                    {inicioUsuarios + 1}–{Math.min(inicioUsuarios + USUARIOS_POR_PAGINA, usuariosLista.length)}
+                  </strong>{' '}
+                  de <strong style={{ color: 'var(--brand-neon)' }}>{usuariosLista.length}</strong>{' '}
+                  cuentas
+                </>
+              )}
+            </span>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                disabled={pagUsuariosSegura <= 1}
+                onClick={() => setPaginaUsuarios((p) => Math.max(1, p - 1))}
+              >
+                ← Anterior
+              </button>
+
+              <span
+                style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 800,
+                  padding: '0.2rem 0.55rem',
+                  color: 'var(--text-primary)'
+                }}
+              >
+                Página {pagUsuariosSegura} de {totalPagUsuarios}
+              </span>
+
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                disabled={pagUsuariosSegura >= totalPagUsuarios}
+                onClick={() => setPaginaUsuarios((p) => Math.min(totalPagUsuarios, p + 1))}
+              >
+                Siguiente →
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Columna Derecha: Respaldo Cifrado AES y Bitácora Antifraude Paginada */}
+        <div className="card card-fill">
+          <div className="card-header">
+            <div className="card-title">
+              <img src="/logos/web-monograma-fs-neon.png" alt="FS" style={{ height: '16px' }} />
+              Respaldo Cifrado AES y Bitácora Antifraude ({auditorias.length})
+            </div>
+            <button type="button" className="btn btn-success btn-sm" onClick={handleBackupManual}>
+              Generar Backup Cifrado Ahora
+            </button>
+          </div>
+
+          {dashboard?.ultimoBackupNube && (
+            <div
+              style={{
+                background: 'var(--brand-neon-soft)',
+                border: '1px solid var(--brand-neon)',
+                padding: '0.45rem 0.85rem',
+                borderRadius: '8px',
+                marginBottom: '0.65rem',
+                fontSize: '0.76rem',
+                flexShrink: 0
+              }}
+            >
+              Último respaldo automático/manual:{' '}
+              <strong style={{ color: 'var(--brand-neon)' }}>
+                {dashboard.ultimoBackupNube.nombreArchivo}
+              </strong>{' '}
+              ({dashboard.ultimoBackupNube.estado})
+            </div>
+          )}
+
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fecha y Hora</th>
+                  <th>Operación Autorizada</th>
+                  <th>Recepcionista en Turno</th>
+                  <th>Justificación Registrada</th>
+                </tr>
+              </thead>
+              <tbody>
+                {auditorias.length === 0 ? (
+                  <tr>
+                    <td colSpan="4" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                      No se han registrado desbloqueos con clave de Administrador.
+                    </td>
+                  </tr>
+                ) : (
+                  auditoriasPaginadas.map((a) => (
+                    <tr key={a.id}>
+                      <td>{new Date(a.fechaHora).toLocaleString('es-CO')}</td>
+                      <td>
+                        <span className="semaforo-badge badge-amarillo">
+                          {a.tipoOperacion}
+                        </span>
+                      </td>
+                      <td>{a.recepcionistaNombreCompleto || 'Directo Admin'}</td>
+                      <td>{a.justificacion}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="pagination-bar">
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+              {auditorias.length === 0 ? (
+                '0 eventos en bitácora'
+              ) : (
+                <>
+                  Mostrando{' '}
+                  <strong style={{ color: 'var(--text-primary)' }}>
+                    {inicioAuditorias + 1}–{Math.min(inicioAuditorias + AUDITORIAS_POR_PAGINA, auditorias.length)}
+                  </strong>{' '}
+                  de <strong style={{ color: 'var(--brand-neon)' }}>{auditorias.length}</strong>{' '}
+                  auditorías
+                </>
+              )}
+            </span>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                disabled={pagAuditoriasSegura <= 1}
+                onClick={() => setPaginaAuditorias((p) => Math.max(1, p - 1))}
+              >
+                ← Anterior
+              </button>
+
+              <span
+                style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 800,
+                  padding: '0.2rem 0.55rem',
+                  color: 'var(--text-primary)'
+                }}
+              >
+                Página {pagAuditoriasSegura} de {totalPagAuditorias}
+              </span>
+
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                disabled={pagAuditoriasSegura >= totalPagAuditorias}
+                onClick={() => setPaginaAuditorias((p) => Math.min(totalPagAuditorias, p + 1))}
+              >
+                Siguiente →
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Modal: Nuevo Operador (Recepcionista / Admin) */}
+      {mostrarModalOperador && (
+        <div className="modal-backdrop">
+          <form className="modal-card" onSubmit={handleCrearUsuario}>
+            <div className="card-header">
+              <div className="card-title">
+                <img src="/logos/web-monograma-fs-neon.png" alt="FS" style={{ height: '18px' }} />
+                Nuevo Operador (Recepcionista / Admin)
+              </div>
+            </div>
+
             <div className="form-row-2">
               <div className="form-group">
                 <label>Usuario (Login) *</label>
@@ -168,119 +419,21 @@ export default function TabGerenciaAdmin({ usuario, mostrarAlerta }) {
               </div>
             </div>
 
-            <button type="submit" className="btn btn-success" style={{ width: '100%' }}>
-              Crear Cuenta de Operador
-            </button>
+            <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => setMostrarModalOperador(false)}
+              >
+                Cancelar
+              </button>
+              <button type="submit" className="btn btn-success">
+                Crear Cuenta de Operador
+              </button>
+            </div>
           </form>
-
-          <div
-            style={{
-              marginTop: '1.35rem',
-              paddingTop: '1.1rem',
-              borderTop: '1px solid var(--border-color)'
-            }}
-          >
-            <div className="card-title" style={{ marginBottom: '0.75rem', fontSize: '0.84rem' }}>
-              Operadores Registrados ({usuariosLista.length})
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-              {usuariosLista.map((u) => (
-                <div
-                  key={u.id}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '0.55rem 0.75rem',
-                    background: 'var(--bg-input)',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-color)',
-                    fontSize: '0.82rem'
-                  }}
-                >
-                  <div>
-                    <strong>{u.nombreCompleto}</strong>{' '}
-                    <span style={{ color: 'var(--text-secondary)' }}>({u.username})</span>
-                  </div>
-                  <span
-                    className={`semaforo-badge ${
-                      u.rol === 'ADMIN' ? 'badge-verde' : 'badge-neutral'
-                    }`}
-                  >
-                    {u.rol}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
-
-        <div className="card">
-          <div className="card-header">
-            <div className="card-title">
-              <img src="/logos/web-monograma-fs-neon.png" alt="FS" style={{ height: '18px' }} />
-              Respaldo Cifrado AES y Bitácora Antifraude
-            </div>
-            <button type="button" className="btn btn-success btn-sm" onClick={handleBackupManual}>
-              Generar Backup Cifrado Ahora
-            </button>
-          </div>
-
-          {dashboard?.ultimoBackupNube && (
-            <div
-              style={{
-                background: 'var(--brand-neon-soft)',
-                border: '1px solid var(--brand-neon)',
-                padding: '0.75rem 1rem',
-                borderRadius: '10px',
-                marginBottom: '1.1rem',
-                fontSize: '0.82rem'
-              }}
-            >
-              Último respaldo automático/manual:{' '}
-              <strong style={{ color: 'var(--brand-neon)' }}>
-                {dashboard.ultimoBackupNube.nombreArchivo}
-              </strong>{' '}
-              ({dashboard.ultimoBackupNube.estado})
-            </div>
-          )}
-
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Fecha y Hora</th>
-                  <th>Operación Autorizada</th>
-                  <th>Recepcionista en Turno</th>
-                  <th>Justificación Registrada</th>
-                </tr>
-              </thead>
-              <tbody>
-                {auditorias.length === 0 ? (
-                  <tr>
-                    <td colSpan="4" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-                      No se han registrado desbloqueos con clave de Administrador.
-                    </td>
-                  </tr>
-                ) : (
-                  auditorias.map((a) => (
-                    <tr key={a.id}>
-                      <td>{new Date(a.fechaHora).toLocaleString('es-CO')}</td>
-                      <td>
-                        <span className="semaforo-badge badge-amarillo">
-                          {a.tipoOperacion}
-                        </span>
-                      </td>
-                      <td>{a.recepcionistaNombreCompleto || 'Directo Admin'}</td>
-                      <td>{a.justificacion}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+      )}
     </section>
   );
 }

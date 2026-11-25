@@ -22,10 +22,10 @@ PASO 2: INSTALAR POSTGRESQL Y CREAR LA BASE DE DATOS "fs_db" (Toma 3 minutos)
 --------------------------------------------------------------------------------
 1. Instalar PostgreSQL (version 16 o 17 para Windows x64).
 2. Cuando el instalador pida la contrasena del superusuario (postgres), poner:
-   1287985dbc
+   191016
    (NOTA: Si decides poner otra contrasena distinta en PostgreSQL, simplemente abre
    el archivo INICIAR_FUNCIONAL_SPORT.bat con clic derecho -> Editar en Bloc de Notas
-   y cambia la linea "set DB_PASS=1287985dbc" por la contrasena que hayas puesto).
+   y cambia la linea "set DB_PASS=191016" por la contrasena que hayas puesto).
 3. Dejar el puerto por defecto: 5432.
 4. Abrir pgAdmin 4 (o SQL Shell psql) y crear la base de datos vacia ejecutando:
    CREATE DATABASE fs_db;

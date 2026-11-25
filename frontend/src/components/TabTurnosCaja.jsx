@@ -4,11 +4,14 @@ import { peticionApi } from '../services/api';
 export default function TabTurnosCaja({ usuario, mostrarAlerta, onCambioEstadoCaja }) {
   const [turnoAbierto, setTurnoAbierto] = useState(null);
   const [pagosTurno, setPagosTurno] = useState([]);
+  const [paginaPagos, setPaginaPagos] = useState(1);
 
   const [jornada, setJornada] = useState('MANANA');
   const [baseInicialEfectivo, setBaseInicialEfectivo] = useState(50000);
   const [efectivoFisicoDeclarado, setEfectivoFisicoDeclarado] = useState('');
   const [observacionesCierre, setObservacionesCierre] = useState('');
+
+  const PAGOS_POR_PAGINA = 6;
 
   const cargarEstadoTurno = async () => {
     try {
@@ -20,6 +23,7 @@ export default function TabTurnosCaja({ usuario, mostrarAlerta, onCambioEstadoCa
     } catch {
       setTurnoAbierto(null);
       setPagosTurno([]);
+      setPaginaPagos(1);
       if (onCambioEstadoCaja) onCambioEstadoCaja(null);
     }
   };
@@ -78,60 +82,65 @@ export default function TabTurnosCaja({ usuario, mostrarAlerta, onCambioEstadoCa
       ? Number(efectivoFisicoDeclarado) - efectivoEsperado
       : null;
 
+  const totalPaginas = Math.max(1, Math.ceil(pagosTurno.length / PAGOS_POR_PAGINA));
+  const paginaSegura = Math.min(paginaPagos, totalPaginas);
+  const indiceInicio = (paginaSegura - 1) * PAGOS_POR_PAGINA;
+  const pagosPaginados = pagosTurno.slice(indiceInicio, indiceInicio + PAGOS_POR_PAGINA);
+
   return (
-    <section>
+    <section className="tab-viewport">
       {/* Resumen de los 5 Canales en la parte superior */}
-      <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(175px, 1fr))' }}>
+      <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(6, 1fr)' }}>
         <div className="kpi-card">
           <div className="kpi-label">1. Efectivo</div>
-          <div className="kpi-value" style={{ fontSize: '1.4rem' }}>
+          <div className="kpi-value" style={{ fontSize: '1.22rem' }}>
             ${Number(turnoAbierto?.totalEfectivo || 0).toLocaleString('es-CO')}
           </div>
-          <div className="kpi-sub">Recaudo en billetes/monedas</div>
+          <div className="kpi-sub">Billetes / monedas</div>
         </div>
         <div className="kpi-card">
           <div className="kpi-label">2. Nequi</div>
-          <div className="kpi-value" style={{ fontSize: '1.4rem' }}>
+          <div className="kpi-value" style={{ fontSize: '1.22rem' }}>
             ${Number(turnoAbierto?.totalNequi || 0).toLocaleString('es-CO')}
           </div>
           <div className="kpi-sub">Transferencia Nequi</div>
         </div>
         <div className="kpi-card">
           <div className="kpi-label">3. Daviplata</div>
-          <div className="kpi-value" style={{ fontSize: '1.4rem' }}>
+          <div className="kpi-value" style={{ fontSize: '1.22rem' }}>
             ${Number(turnoAbierto?.totalDaviplata || 0).toLocaleString('es-CO')}
           </div>
           <div className="kpi-sub">Transferencia Daviplata</div>
         </div>
         <div className="kpi-card">
           <div className="kpi-label">4. Bancolombia</div>
-          <div className="kpi-value" style={{ fontSize: '1.4rem' }}>
+          <div className="kpi-value" style={{ fontSize: '1.22rem' }}>
             ${Number(turnoAbierto?.totalBancolombia || 0).toLocaleString('es-CO')}
           </div>
           <div className="kpi-sub">QR / App Bancolombia</div>
         </div>
         <div className="kpi-card">
           <div className="kpi-label">5. Llave Bre-B</div>
-          <div className="kpi-value" style={{ fontSize: '1.4rem' }}>
+          <div className="kpi-value" style={{ fontSize: '1.22rem' }}>
             ${Number(turnoAbierto?.totalLlaveBreB || 0).toLocaleString('es-CO')}
           </div>
           <div className="kpi-sub">Transferencia inmediata</div>
         </div>
         <div className="kpi-card">
           <div className="kpi-label">Recaudo Total Turno</div>
-          <div className="kpi-value" style={{ fontSize: '1.4rem', color: 'var(--brand-neon)' }}>
+          <div className="kpi-value" style={{ fontSize: '1.22rem', color: 'var(--brand-neon)' }}>
             ${Number(turnoAbierto?.totalGeneralRecaudo || 0).toLocaleString('es-CO')}
           </div>
           <div className="kpi-sub">Suma de los 5 canales</div>
         </div>
       </div>
 
-      <div className="grid-layout-asymmetric">
+      <div className="tab-split-fill">
         {/* Panel Izquierdo: Apertura o Cierre con Calculadora en Vivo */}
-        <div className="card">
+        <div className="card card-fill">
           <div className="card-header">
             <div className="card-title">
-              <img src="/logos/web-monograma-fs-neon.png" alt="FS" style={{ height: '18px' }} />
+              <img src="/logos/web-monograma-fs-neon.png" alt="FS" style={{ height: '16px' }} />
               {turnoAbierto
                 ? `Cierre y Cuadre — Turno ${turnoAbierto.jornada}`
                 : 'Apertura de Turno de Caja'}
@@ -139,45 +148,47 @@ export default function TabTurnosCaja({ usuario, mostrarAlerta, onCambioEstadoCa
           </div>
 
           {!turnoAbierto ? (
-            <form onSubmit={handleAbrirTurno}>
-              <p
-                style={{
-                  fontSize: '0.84rem',
-                  color: 'var(--text-secondary)',
-                  marginBottom: '1rem'
-                }}
-              >
-                Seleccione la jornada (Mañana o Tarde) y registre la base de efectivo con
-                la que inicia el cajón para habilitar las ventas en recepción.
-              </p>
+            <form className="card-body-fill" onSubmit={handleAbrirTurno}>
+              <div>
+                <p
+                  style={{
+                    fontSize: '0.8rem',
+                    color: 'var(--text-secondary)',
+                    marginBottom: '0.85rem'
+                  }}
+                >
+                  Seleccione la jornada (Mañana o Tarde) y registre la base de efectivo con
+                  la que inicia el cajón para habilitar las ventas en recepción.
+                </p>
 
-              <div className="form-group">
-                <label>Jornada Operativa (Sección 3.4)</label>
-                <div className="channel-pills">
-                  <button
-                    type="button"
-                    className={`channel-pill ${jornada === 'MANANA' ? 'selected' : ''}`}
-                    onClick={() => setJornada('MANANA')}
-                  >
-                    TURNO MAÑANA
-                  </button>
-                  <button
-                    type="button"
-                    className={`channel-pill ${jornada === 'TARDE' ? 'selected' : ''}`}
-                    onClick={() => setJornada('TARDE')}
-                  >
-                    TURNO TARDE
-                  </button>
+                <div className="form-group">
+                  <label>Jornada Operativa (Sección 3.4)</label>
+                  <div className="channel-pills">
+                    <button
+                      type="button"
+                      className={`channel-pill ${jornada === 'MANANA' ? 'selected' : ''}`}
+                      onClick={() => setJornada('MANANA')}
+                    >
+                      TURNO MAÑANA
+                    </button>
+                    <button
+                      type="button"
+                      className={`channel-pill ${jornada === 'TARDE' ? 'selected' : ''}`}
+                      onClick={() => setJornada('TARDE')}
+                    >
+                      TURNO TARDE
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              <div className="form-group">
-                <label>Base Inicial de Efectivo en Cajón ($ COP)</label>
-                <input
-                  type="number"
-                  value={baseInicialEfectivo}
-                  onChange={(e) => setBaseInicialEfectivo(e.target.value)}
-                />
+                <div className="form-group">
+                  <label>Base Inicial de Efectivo en Cajón ($ COP)</label>
+                  <input
+                    type="number"
+                    value={baseInicialEfectivo}
+                    onChange={(e) => setBaseInicialEfectivo(e.target.value)}
+                  />
+                </div>
               </div>
 
               <button type="submit" className="btn btn-success" style={{ width: '100%' }}>
@@ -185,125 +196,127 @@ export default function TabTurnosCaja({ usuario, mostrarAlerta, onCambioEstadoCa
               </button>
             </form>
           ) : (
-            <form onSubmit={handleCerrarTurno}>
-              <div
-                style={{
-                  background: 'var(--bg-input)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '10px',
-                  padding: '1rem',
-                  marginBottom: '1rem'
-                }}
-              >
+            <form className="card-body-fill" onSubmit={handleCerrarTurno}>
+              <div>
                 <div
                   style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    fontSize: '0.84rem',
-                    marginBottom: '0.35rem'
+                    background: 'var(--bg-input)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '10px',
+                    padding: '0.75rem 0.9rem',
+                    marginBottom: '0.75rem'
                   }}
                 >
-                  <span style={{ color: 'var(--text-secondary)' }}>Responsable:</span>
-                  <strong>{turnoAbierto.usuarioNombreCompleto}</strong>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: '0.79rem',
+                      marginBottom: '0.28rem'
+                    }}
+                  >
+                    <span style={{ color: 'var(--text-secondary)' }}>Responsable:</span>
+                    <strong>{turnoAbierto.usuarioNombreCompleto}</strong>
+                  </div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: '0.79rem',
+                      marginBottom: '0.28rem'
+                    }}
+                  >
+                    <span style={{ color: 'var(--text-secondary)' }}>Base Inicial Efectivo:</span>
+                    <strong>
+                      ${Number(turnoAbierto.baseInicialEfectivo).toLocaleString('es-CO')} COP
+                    </strong>
+                  </div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: '0.79rem',
+                      marginBottom: '0.28rem'
+                    }}
+                  >
+                    <span style={{ color: 'var(--text-secondary)' }}>
+                      + Ventas en Efectivo del Turno:
+                    </span>
+                    <strong>
+                      ${Number(turnoAbierto.totalEfectivo).toLocaleString('es-CO')} COP
+                    </strong>
+                  </div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: '0.88rem',
+                      borderTop: '1px solid var(--border-color)',
+                      paddingTop: '0.42rem',
+                      marginTop: '0.32rem'
+                    }}
+                  >
+                    <span style={{ color: 'var(--brand-neon)', fontWeight: 800 }}>
+                      Efectivo Esperado en Cajón:
+                    </span>
+                    <strong style={{ color: 'var(--brand-neon)' }}>
+                      ${efectivoEsperado.toLocaleString('es-CO')} COP
+                    </strong>
+                  </div>
                 </div>
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    fontSize: '0.84rem',
-                    marginBottom: '0.35rem'
-                  }}
-                >
-                  <span style={{ color: 'var(--text-secondary)' }}>Base Inicial Efectivo:</span>
-                  <strong>
-                    ${Number(turnoAbierto.baseInicialEfectivo).toLocaleString('es-CO')} COP
-                  </strong>
-                </div>
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    fontSize: '0.84rem',
-                    marginBottom: '0.35rem'
-                  }}
-                >
-                  <span style={{ color: 'var(--text-secondary)' }}>
-                    + Ventas en Efectivo del Turno:
-                  </span>
-                  <strong>
-                    ${Number(turnoAbierto.totalEfectivo).toLocaleString('es-CO')} COP
-                  </strong>
-                </div>
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    fontSize: '0.96rem',
-                    borderTop: '1px solid var(--border-color)',
-                    paddingTop: '0.5rem',
-                    marginTop: '0.4rem'
-                  }}
-                >
-                  <span style={{ color: 'var(--brand-neon)', fontWeight: 800 }}>
-                    Efectivo Esperado en Cajón:
-                  </span>
-                  <strong style={{ color: 'var(--brand-neon)' }}>
-                    ${efectivoEsperado.toLocaleString('es-CO')} COP
-                  </strong>
-                </div>
-              </div>
 
-              <div className="form-group">
-                <label>Efectivo Físico Contado al Cierre ($ COP) *</label>
-                <input
-                  type="number"
-                  value={efectivoFisicoDeclarado}
-                  onChange={(e) => setEfectivoFisicoDeclarado(e.target.value)}
-                  placeholder="Ingrese la suma de billetes y monedas en caja..."
-                  required
-                />
-              </div>
-
-              {diferenciaEnVivo !== null && (
-                <div
-                  style={{
-                    padding: '0.7rem 0.9rem',
-                    borderRadius: '8px',
-                    marginBottom: '0.9rem',
-                    fontSize: '0.84rem',
-                    fontWeight: 800,
-                    background:
-                      diferenciaEnVivo === 0
-                        ? 'var(--semaforo-verde-bg)'
-                        : diferenciaEnVivo > 0
-                        ? 'var(--semaforo-amarillo-bg)'
-                        : 'var(--semaforo-rojo-bg)',
-                    color:
-                      diferenciaEnVivo === 0
-                        ? 'var(--brand-neon)'
-                        : diferenciaEnVivo > 0
-                        ? 'var(--semaforo-amarillo)'
-                        : '#fca5a5'
-                  }}
-                >
-                  {diferenciaEnVivo === 0
-                    ? '✓ CUADRE EXACTO ($0 COP de diferencia)'
-                    : diferenciaEnVivo > 0
-                    ? `SOBRANTE EN CAJA: +$${diferenciaEnVivo.toLocaleString('es-CO')} COP`
-                    : `FALTANTE EN CAJA: -$${Math.abs(diferenciaEnVivo).toLocaleString(
-                        'es-CO'
-                      )} COP`}
+                <div className="form-group">
+                  <label>Efectivo Físico Contado al Cierre ($ COP) *</label>
+                  <input
+                    type="number"
+                    value={efectivoFisicoDeclarado}
+                    onChange={(e) => setEfectivoFisicoDeclarado(e.target.value)}
+                    placeholder="Suma de billetes y monedas en caja..."
+                    required
+                  />
                 </div>
-              )}
 
-              <div className="form-group">
-                <label>Observaciones del Acta de Cuadre</label>
-                <input
-                  type="text"
-                  value={observacionesCierre}
-                  onChange={(e) => setObservacionesCierre(e.target.value)}
-                  placeholder="Opcional: notas de entrega de turno"
-                />
+                {diferenciaEnVivo !== null && (
+                  <div
+                    style={{
+                      padding: '0.5rem 0.75rem',
+                      borderRadius: '8px',
+                      marginBottom: '0.65rem',
+                      fontSize: '0.78rem',
+                      fontWeight: 800,
+                      background:
+                        diferenciaEnVivo === 0
+                          ? 'var(--semaforo-verde-bg)'
+                          : diferenciaEnVivo > 0
+                          ? 'var(--semaforo-amarillo-bg)'
+                          : 'var(--semaforo-rojo-bg)',
+                      color:
+                        diferenciaEnVivo === 0
+                          ? 'var(--brand-neon)'
+                          : diferenciaEnVivo > 0
+                          ? 'var(--semaforo-amarillo)'
+                          : '#fca5a5'
+                    }}
+                  >
+                    {diferenciaEnVivo === 0
+                      ? '✓ CUADRE EXACTO ($0 COP de diferencia)'
+                      : diferenciaEnVivo > 0
+                      ? `SOBRANTE EN CAJA: +$${diferenciaEnVivo.toLocaleString('es-CO')} COP`
+                      : `FALTANTE EN CAJA: -$${Math.abs(diferenciaEnVivo).toLocaleString(
+                          'es-CO'
+                        )} COP`}
+                  </div>
+                )}
+
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label>Observaciones del Acta de Cuadre</label>
+                  <input
+                    type="text"
+                    value={observacionesCierre}
+                    onChange={(e) => setObservacionesCierre(e.target.value)}
+                    placeholder="Opcional: notas de entrega de turno"
+                  />
+                </div>
               </div>
 
               <button type="submit" className="btn btn-warning" style={{ width: '100%' }}>
@@ -313,13 +326,20 @@ export default function TabTurnosCaja({ usuario, mostrarAlerta, onCambioEstadoCa
           )}
         </div>
 
-        {/* Panel Derecho: Movimientos Asentados en el Turno */}
-        <div className="card">
+        {/* Panel Derecho: Movimientos Asentados en el Turno (Paginado Sin Scroll) */}
+        <div className="card card-fill">
           <div className="card-header">
             <div className="card-title">
-              <img src="/logos/web-monograma-fs-neon.png" alt="FS" style={{ height: '18px' }} />
+              <img src="/logos/web-monograma-fs-neon.png" alt="FS" style={{ height: '16px' }} />
               Pagos Asentados en el Turno Actual ({pagosTurno.length})
             </div>
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              onClick={cargarEstadoTurno}
+            >
+              Actualizar
+            </button>
           </div>
 
           <div className="table-wrap">
@@ -342,12 +362,12 @@ export default function TabTurnosCaja({ usuario, mostrarAlerta, onCambioEstadoCa
                     </td>
                   </tr>
                 ) : (
-                  pagosTurno.map((p) => (
+                  pagosPaginados.map((p) => (
                     <tr key={p.id}>
                       <td>{new Date(p.fechaHoraPago).toLocaleTimeString('es-CO')}</td>
                       <td>
                         <strong>{p.clienteNombreCompleto}</strong>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
                           {p.clienteDocumento}
                         </div>
                       </td>
@@ -376,6 +396,54 @@ export default function TabTurnosCaja({ usuario, mostrarAlerta, onCambioEstadoCa
                 )}
               </tbody>
             </table>
+          </div>
+
+          <div className="pagination-bar">
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+              {pagosTurno.length === 0 ? (
+                '0 pagos en turno'
+              ) : (
+                <>
+                  Mostrando{' '}
+                  <strong style={{ color: 'var(--text-primary)' }}>
+                    {indiceInicio + 1}–{Math.min(indiceInicio + PAGOS_POR_PAGINA, pagosTurno.length)}
+                  </strong>{' '}
+                  de <strong style={{ color: 'var(--brand-neon)' }}>{pagosTurno.length}</strong>{' '}
+                  pagos
+                </>
+              )}
+            </span>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                disabled={paginaSegura <= 1}
+                onClick={() => setPaginaPagos((p) => Math.max(1, p - 1))}
+              >
+                ← Anterior
+              </button>
+
+              <span
+                style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 800,
+                  padding: '0.2rem 0.55rem',
+                  color: 'var(--text-primary)'
+                }}
+              >
+                Página {paginaSegura} de {totalPaginas}
+              </span>
+
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                disabled={paginaSegura >= totalPaginas}
+                onClick={() => setPaginaPagos((p) => Math.min(totalPaginas, p + 1))}
+              >
+                Siguiente →
+              </button>
+            </div>
           </div>
         </div>
       </div>

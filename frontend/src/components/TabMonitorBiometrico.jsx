@@ -9,21 +9,22 @@ export default function TabMonitorBiometrico({ mostrarAlerta }) {
     plantillasBiometricasEnMemoria: 0
   });
   const [historial, setHistorial] = useState([]);
-  const [clientesRapidos, setClientesRapidos] = useState([]);
+  const [paginaActual, setPaginaActual] = useState(1);
   const [ultimoResultado, setUltimoResultado] = useState(null);
   const [huellaInput, setHuellaInput] = useState('');
   const [documentoInput, setDocumentoInput] = useState('');
 
+  // Máximo 6 registros visibles en pantalla para garantizar cero scroll vertical
+  const ITEMS_POR_PAGINA = 6;
+
   const cargarDatosMonitor = async () => {
     try {
-      const [resumen, hist, listaClientes] = await Promise.all([
+      const [resumen, hist] = await Promise.all([
         peticionApi('/api/v1/acceso/resumen-dia'),
-        peticionApi('/api/v1/acceso/historial-reciente'),
-        peticionApi('/api/v1/clientes')
+        peticionApi('/api/v1/acceso/historial-reciente')
       ]);
       setResumenDia(resumen);
       setHistorial(hist);
-      setClientesRapidos(listaClientes);
     } catch (e) {
       console.error(e);
     }
@@ -33,12 +34,12 @@ export default function TabMonitorBiometrico({ mostrarAlerta }) {
     cargarDatosMonitor();
     let fechaActualStr = new Date().toLocaleDateString('es-CO');
 
-    // Si el computador queda encendido al cambiar de día (00:00), reinicia el monitor en cero automáticamente
     const verificadorCambioDeDia = setInterval(() => {
       const nuevaFechaStr = new Date().toLocaleDateString('es-CO');
       if (nuevaFechaStr !== fechaActualStr) {
         fechaActualStr = nuevaFechaStr;
         setUltimoResultado(null);
+        setPaginaActual(1);
         cargarDatosMonitor();
       }
     }, 30000);
@@ -48,6 +49,7 @@ export default function TabMonitorBiometrico({ mostrarAlerta }) {
       try {
         const resultado = JSON.parse(event.data);
         setUltimoResultado(resultado);
+        setPaginaActual(1);
         cargarDatosMonitor();
       } catch (e) {
         console.error(e);
@@ -68,6 +70,7 @@ export default function TabMonitorBiometrico({ mostrarAlerta }) {
         body: JSON.stringify({ templateBiometricoBase64: huellaInput })
       });
       setUltimoResultado(res);
+      setPaginaActual(1);
       cargarDatosMonitor();
     } catch (err) {
       mostrarAlerta(err.message, 'error');
@@ -82,6 +85,7 @@ export default function TabMonitorBiometrico({ mostrarAlerta }) {
         body: JSON.stringify({ numeroDocumento: doc.trim() })
       });
       setUltimoResultado(res);
+      setPaginaActual(1);
       cargarDatosMonitor();
     } catch (err) {
       mostrarAlerta(err.message, 'error');
@@ -121,9 +125,14 @@ export default function TabMonitorBiometrico({ mostrarAlerta }) {
     return t;
   };
 
+  const totalPaginas = Math.max(1, Math.ceil(historial.length / ITEMS_POR_PAGINA));
+  const paginaSegura = Math.min(paginaActual, totalPaginas);
+  const indiceInicio = (paginaSegura - 1) * ITEMS_POR_PAGINA;
+  const historialPaginado = historial.slice(indiceInicio, indiceInicio + ITEMS_POR_PAGINA);
+
   return (
-    <section>
-      {/* Indicadores del Día */}
+    <section className="tab-viewport">
+      {/* Fila Superior Compacta: 3 Indicadores del Día */}
       <div className="kpi-grid">
         <div className="kpi-card">
           <div className="kpi-label">Ingresos Autorizados Hoy</div>
@@ -148,211 +157,137 @@ export default function TabMonitorBiometrico({ mostrarAlerta }) {
           </div>
           <div className="kpi-sub">Vencidos o 2do intento Anti-Passback</div>
         </div>
-
-        <div className="kpi-card">
-          <div className="kpi-label">Huellas ZKTeco en Memoria RAM</div>
-          <div className="kpi-value">{resumenDia.plantillasBiometricasEnMemoria}</div>
-          <div className="kpi-sub">Búsqueda 1:N en &lt; 5 milisegundos</div>
-        </div>
       </div>
 
-      {/* Semáforo Visual Principal */}
-      <div className={`semaforo-hero ${colorSemaforo}`}>
-        <div className="semaforo-emblem-box">
-          <img
-            src={osoSrc}
-            alt="Oso Funcional Sport"
-            style={{ height: '74px', width: 'auto', marginBottom: '0.6rem' }}
-          />
-          <span className={claseBadgeSemaforo(colorSemaforo)}>
-            {ultimoResultado ? ultimoResultado.colorSemaforo : 'EN ESPERA'}
-          </span>
-          {ultimoResultado && (
-            <small
-              style={{
-                marginTop: '0.35rem',
-                fontSize: '0.7rem',
-                color: 'var(--text-secondary)'
-              }}
-            >
-               Respuesta: {ultimoResultado.tiempoRespuestaMs || 1} ms
-            </small>
-          )}
+      {/* Cuerpo Principal en 2 Columnas a Altura Completa (Sin Scroll) */}
+      <div className="tab-split-fill">
+        {/* Columna Izquierda: Semáforo en Vivo + Validación de Ingreso */}
+        <div className="monitor-left-stack">
+          <div className={`semaforo-hero ${colorSemaforo}`}>
+            <div className="semaforo-hero-top">
+              <div className="semaforo-emblem-box">
+                <img
+                  src={osoSrc}
+                  alt="Oso Funcional Sport"
+                  style={{ height: '50px', width: 'auto', marginBottom: '0.4rem' }}
+                />
+                <span className={claseBadgeSemaforo(colorSemaforo)}>
+                  {ultimoResultado ? ultimoResultado.colorSemaforo : 'EN ESPERA'}
+                </span>
+              </div>
+
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div
+                  style={{
+                    fontSize: '0.68rem',
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.06em',
+                    color: 'var(--brand-neon)',
+                    marginBottom: '0.15rem'
+                  }}
+                >
+                  {ultimoResultado
+                    ? `MOTIVO: ${ultimoResultado.motivoResultado}`
+                    : 'MONITOR BIOMÉTRICO LISTO'}
+                </div>
+
+                <div className="semaforo-cliente-nombre">
+                  {ultimoResultado
+                    ? ultimoResultado.clienteNombreCompleto || 'USUARIO NO IDENTIFICADO'
+                    : 'Coloque el dedo en el lector'}
+                </div>
+
+                <div
+                  style={{
+                    fontSize: '0.82rem',
+                    fontWeight: 600,
+                    color: ultimoResultado ? '#FFFFFF' : 'var(--text-secondary)',
+                    lineHeight: 1.3
+                  }}
+                >
+                  {ultimoResultado
+                    ? ultimoResultado.mensajePantalla
+                    : 'Esperando lectura de huella ZKTeco o validación por documento.'}
+                </div>
+              </div>
+            </div>
+
+            <div className="semaforo-meta-strip">
+              <div>
+                <div className="kpi-label">Plan Activo</div>
+                <div style={{ fontWeight: 800, fontSize: '0.84rem', marginTop: '0.1rem' }}>
+                  {ultimoResultado?.planNombre || '—'}
+                </div>
+              </div>
+              <div>
+                <div className="kpi-label">Vencimiento</div>
+                <div style={{ fontWeight: 800, fontSize: '0.84rem', marginTop: '0.1rem' }}>
+                  {ultimoResultado?.fechaExactaVencimiento || '—'}
+                </div>
+              </div>
+              <div>
+                <div className="kpi-label">Restante</div>
+                <div
+                  style={{
+                    fontWeight: 900,
+                    fontSize: '0.84rem',
+                    marginTop: '0.1rem',
+                    color: 'var(--brand-neon)'
+                  }}
+                >
+                  {textoRestante()}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="card" style={{ flexShrink: 0 }}>
+            <div className="card-header">
+              <div className="card-title">
+                <img src="/logos/web-monograma-fs-neon.png" alt="FS" style={{ height: '16px' }} />
+                Validar Ingreso de Deportista
+              </div>
+            </div>
+
+            <form className="form-group" onSubmit={handleValidarDocumento}>
+              <label>1. Por Cédula / Documento (Mostrador)</label>
+              <div style={{ display: 'flex', gap: '0.45rem' }}>
+                <input
+                  type="text"
+                  value={documentoInput}
+                  onChange={(e) => setDocumentoInput(e.target.value)}
+                  placeholder="Digite número de documento..."
+                />
+                <button type="submit" className="btn btn-success">
+                  Validar
+                </button>
+              </div>
+            </form>
+
+            <form className="form-group" style={{ marginBottom: 0 }} onSubmit={handleValidarHuella}>
+              <label>2. Por Sensor USB ZKTeco</label>
+              <div style={{ display: 'flex', gap: '0.45rem' }}>
+                <input
+                  type="text"
+                  value={huellaInput}
+                  onChange={(e) => setHuellaInput(e.target.value)}
+                  placeholder="Plantilla capturada por el lector..."
+                />
+                <button type="submit" className="btn btn-outline">
+                  Leer Huella
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
 
-        <div>
-          <div
-            style={{
-              fontSize: '0.75rem',
-              fontWeight: 800,
-              textTransform: 'uppercase',
-              letterSpacing: '0.07em',
-              color: 'var(--brand-neon)',
-              marginBottom: '0.2rem'
-            }}
-          >
-            {ultimoResultado
-              ? `MOTIVO: ${ultimoResultado.motivoResultado} • OPERACIÓN SILENCIOSA`
-              : 'MONITOR BIOMÉTRICO SILENCIOSO LISTO'}
-          </div>
-
-          <div className="semaforo-cliente-nombre">
-            {ultimoResultado
-              ? ultimoResultado.clienteNombreCompleto || 'USUARIO NO IDENTIFICADO'
-              : 'Coloque el dedo en el sensor ZKTeco'}
-          </div>
-
-          <div
-            style={{
-              fontSize: '1.02rem',
-              fontWeight: 600,
-              color: ultimoResultado ? '#FFFFFF' : 'var(--text-secondary)'
-            }}
-          >
-            {ultimoResultado
-              ? ultimoResultado.mensajePantalla
-              : 'También puede validar el ingreso ingresando o seleccionando el documento del deportista abajo.'}
-          </div>
-
-          <div className="semaforo-meta-strip">
-            <div>
-              <div className="kpi-label">Plan Activo</div>
-              <div style={{ fontWeight: 800, fontSize: '0.98rem', marginTop: '0.15rem' }}>
-                {ultimoResultado?.planNombre || '—'}
-              </div>
-            </div>
-            <div>
-              <div className="kpi-label">Fecha de Vencimiento</div>
-              <div style={{ fontWeight: 800, fontSize: '0.98rem', marginTop: '0.15rem' }}>
-                {ultimoResultado?.fechaExactaVencimiento || '—'}
-              </div>
-            </div>
-            <div>
-              <div className="kpi-label">Días / Sesiones Restantes</div>
-              <div
-                style={{
-                  fontWeight: 900,
-                  fontSize: '0.98rem',
-                  marginTop: '0.15rem',
-                  color: 'var(--brand-neon)'
-                }}
-              >
-                {textoRestante()}
-              </div>
-            </div>
-            <div>
-              <div className="kpi-label">Deudas en Caja</div>
-              <div style={{ fontWeight: 800, fontSize: '0.98rem', marginTop: '0.15rem' }}>
-                ${Number(ultimoResultado?.saldoPendienteCaja || 0).toLocaleString('es-CO')} COP
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Paneles Inferiores: Validación y Bitácora */}
-      <div className="grid-layout-asymmetric">
-        <div className="card">
+        {/* Columna Derecha: Bitácora del Día con Paginación Fija (Sin Scroll) */}
+        <div className="card card-fill">
           <div className="card-header">
             <div className="card-title">
-              <img src="/logos/web-monograma-fs-neon.png" alt="FS" style={{ height: '18px' }} />
-              Validar Ingreso de Deportista
-            </div>
-          </div>
-
-          <form className="form-group" onSubmit={handleValidarDocumento}>
-            <label>1. Validar por Cédula / Documento (Respaldo en Mostrador)</label>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <input
-                type="text"
-                value={documentoInput}
-                onChange={(e) => setDocumentoInput(e.target.value)}
-                placeholder="Digite número de documento..."
-              />
-              <button type="submit" className="btn btn-success">
-                Validar
-              </button>
-            </div>
-          </form>
-
-          <form className="form-group" onSubmit={handleValidarHuella}>
-            <label>2. Validar por Lectura de Sensor USB ZKTeco</label>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <input
-                type="text"
-                value={huellaInput}
-                onChange={(e) => setHuellaInput(e.target.value)}
-                placeholder="Plantilla capturada por el lector ZKTeco..."
-              />
-              <button type="submit" className="btn btn-outline">
-                Leer Huella
-              </button>
-            </div>
-          </form>
-
-          {clientesRapidos.length > 0 && (
-            <div
-              style={{
-                marginTop: '1.15rem',
-                paddingTop: '1rem',
-                borderTop: '1px solid var(--border-color)'
-              }}
-            >
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: '0.73rem',
-                  color: 'var(--text-secondary)',
-                  textTransform: 'uppercase',
-                  fontWeight: 800,
-                  marginBottom: '0.55rem'
-                }}
-              >
-                Prueba Rápida con 1 Clic (Socios Registrados)
-              </label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-                {clientesRapidos.slice(0, 5).map((c) => (
-                  <div
-                    key={c.id}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '0.5rem 0.75rem',
-                      background: 'var(--bg-input)',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: '8px',
-                      fontSize: '0.82rem'
-                    }}
-                  >
-                    <div>
-                      <strong>{c.nombreCompleto}</strong>{' '}
-                      <span style={{ color: 'var(--text-secondary)' }}>
-                        ({c.numeroDocumento})
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      className="btn btn-outline btn-sm"
-                      onClick={() => {
-                        setDocumentoInput(c.numeroDocumento);
-                        ejecutarValidacionPorDocumento(c.numeroDocumento);
-                      }}
-                    >
-                      Probar Ingreso
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="card">
-          <div className="card-header">
-            <div className="card-title">
-              <img src="/logos/web-monograma-fs-neon.png" alt="FS" style={{ height: '18px' }} />
-              Ingresos y Marcaciones del Día de Hoy ({historial.length})
+              <img src="/logos/web-monograma-fs-neon.png" alt="FS" style={{ height: '16px' }} />
+              Ingresos y Marcaciones de Hoy ({historial.length})
             </div>
             <button
               type="button"
@@ -383,7 +318,7 @@ export default function TabMonitorBiometrico({ mostrarAlerta }) {
                     </td>
                   </tr>
                 ) : (
-                  historial.map((item) => (
+                  historialPaginado.map((item) => (
                     <tr key={item.registroAccesoId}>
                       <td>
                         {item.fechaHoraExacta
@@ -393,7 +328,7 @@ export default function TabMonitorBiometrico({ mostrarAlerta }) {
                       <td>
                         <strong>{item.clienteNombreCompleto}</strong>
                         {item.clienteDocumento && (
-                          <div style={{ fontSize: '0.73rem', color: 'var(--text-secondary)' }}>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
                             {item.clienteDocumento}
                           </div>
                         )}
@@ -404,7 +339,7 @@ export default function TabMonitorBiometrico({ mostrarAlerta }) {
                           {item.colorSemaforo}
                         </span>
                       </td>
-                      <td style={{ fontSize: '0.78rem', fontWeight: 700 }}>
+                      <td style={{ fontSize: '0.75rem', fontWeight: 700 }}>
                         {item.motivoResultado}
                       </td>
                       <td>
@@ -418,6 +353,54 @@ export default function TabMonitorBiometrico({ mostrarAlerta }) {
                 )}
               </tbody>
             </table>
+          </div>
+
+          <div className="pagination-bar">
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+              {historial.length === 0 ? (
+                '0 registros hoy'
+              ) : (
+                <>
+                  Mostrando{' '}
+                  <strong style={{ color: 'var(--text-primary)' }}>
+                    {indiceInicio + 1}–{Math.min(indiceInicio + ITEMS_POR_PAGINA, historial.length)}
+                  </strong>{' '}
+                  de <strong style={{ color: 'var(--brand-neon)' }}>{historial.length}</strong>{' '}
+                  ingresos
+                </>
+              )}
+            </span>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                disabled={paginaSegura <= 1}
+                onClick={() => setPaginaActual((p) => Math.max(1, p - 1))}
+              >
+                ← Anterior
+              </button>
+
+              <span
+                style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 800,
+                  padding: '0.2rem 0.55rem',
+                  color: 'var(--text-primary)'
+                }}
+              >
+                Página {paginaSegura} de {totalPaginas}
+              </span>
+
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                disabled={paginaSegura >= totalPaginas}
+                onClick={() => setPaginaActual((p) => Math.min(totalPaginas, p + 1))}
+              >
+                Siguiente →
+              </button>
+            </div>
           </div>
         </div>
       </div>

@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 const TAB_META = {
   monitor: {
     titulo: 'Monitor de Control de Acceso Biométrico',
-    descripcion: 'Validación en tiempo real (< 1s) con sensor ZKTeco • Anti-Passback diario activo'
+    descripcion: ''
   },
   clientes: {
     titulo: 'Directorio de Socios y Enrolamiento Biométrico',
@@ -20,157 +20,223 @@ const TAB_META = {
   admin: {
     titulo: 'Panel Ejecutivo de Gerencia y Respaldo',
     descripcion: 'Métricas de rentabilidad, usuarios del sistema, auditoría Admin y backups cifrados'
+  },
+  perfil: {
+    titulo: 'Perfil del Operador y Seguridad de Sesión',
+    descripcion: 'Información de la cuenta activa, matriz de permisos asignada y control de sesión'
   }
 };
 
-export function Sidebar({ usuario, activeTab, onSelectTab, onLogout }) {
+/**
+ * Extrae las 2 iniciales del operador (primera letra del nombre + primera letra del apellido).
+ * Limpia sufijos descriptivos tras guiones como "Jhorman - Administrador Funcional Sport Col".
+ */
+export function obtenerInicialesOperador(nombreCompleto, username) {
+  const base = String(nombreCompleto || '')
+    .split(/\s+[-–—]\s+/)[0]
+    .trim();
+
+  const partes = base.split(/\s+/).filter(Boolean);
+  if (partes.length >= 2) {
+    return `${partes[0][0]}${partes[partes.length - 1][0]}`.toUpperCase();
+  }
+  if (partes.length === 1 && partes[0].length >= 2) {
+    return partes[0].slice(0, 2).toUpperCase();
+  }
+  const cleanUser = String(username || 'FS').replace(/[^a-zA-Z0-9]/g, '');
+  return (cleanUser.slice(0, 2) || 'FS').toUpperCase();
+}
+
+export function Sidebar({ usuario, activeTab, onSelectTab }) {
   const esAdmin = usuario?.rol === 'ADMIN';
+  const iniciales = obtenerInicialesOperador(usuario?.nombreCompleto, usuario?.username);
+  const nombreCorto =
+    String(usuario?.nombreCompleto || usuario?.username || 'Operador')
+      .split(/\s+[-–—]\s+/)[0]
+      .trim();
 
   return (
-    <aside className="sidebar">
-      <div>
-        <div className="sidebar-brand">
+    <aside className="sidebar" aria-label="Navegación principal">
+      {/* Esquina superior izquierda: únicamente el logo */}
+      <div className="sidebar-brand">
+        <button
+          type="button"
+          className="sidebar-brand-btn"
+          onClick={() => onSelectTab('monitor')}
+          data-tooltip="Funcional Sport Col"
+          title="Funcional Sport Col — Ir al Monitor"
+          aria-label="Funcional Sport Col — Ir al Monitor de Acceso"
+        >
           <img
-            src="/logos/web-logo-horizontal-blanco-neon.png"
+            src="/logos/web-monograma-fs-neon.png"
             alt="Funcional Sport"
             className="sidebar-logo"
           />
-          <span className="sidebar-tag">Sistema Local de Control Biométrico</span>
-        </div>
+        </button>
+      </div>
 
+      {/* Navegación central minimalista (solo íconos + línea neón activa) */}
+      <div className="sidebar-scroll-area">
         <nav className="sidebar-nav">
-          <div className="nav-section-label">Operación de Recepción</div>
-
           <button
             type="button"
             className={`nav-item ${activeTab === 'monitor' ? 'active' : ''}`}
             onClick={() => onSelectTab('monitor')}
+            data-tooltip="Monitor de Acceso"
+            title="Monitor de Acceso"
+            aria-label="Monitor de Acceso"
+            aria-current={activeTab === 'monitor' ? 'page' : undefined}
           >
-            <svg className="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+            <svg
+              className="nav-item-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.1"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" />
             </svg>
-            <div className="nav-item-text">
-              <span className="nav-item-title">Monitor de Acceso</span>
-              <span className="nav-item-sub">Semáforo y Lector ZKTeco</span>
-            </div>
           </button>
 
           <button
             type="button"
             className={`nav-item ${activeTab === 'clientes' ? 'active' : ''}`}
             onClick={() => onSelectTab('clientes')}
+            data-tooltip="Socios y Huellas"
+            title="Socios y Huellas"
+            aria-label="Socios y Huellas"
+            aria-current={activeTab === 'clientes' ? 'page' : undefined}
           >
-            <svg className="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+            <svg
+              className="nav-item-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.1"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
               <circle cx="9" cy="7" r="4" />
               <path d="M23 21v-2a4 4 0 00-3-3.87m-4-12a4 4 0 010 7.75" />
             </svg>
-            <div className="nav-item-text">
-              <span className="nav-item-title">Socios y Huellas</span>
-              <span className="nav-item-sub">Registro y Enrolamiento</span>
-            </div>
           </button>
 
           <button
             type="button"
             className={`nav-item ${activeTab === 'membresias' ? 'active' : ''}`}
             onClick={() => onSelectTab('membresias')}
+            data-tooltip="Planes y Membresías"
+            title="Planes y Membresías"
+            aria-label="Planes y Membresías"
+            aria-current={activeTab === 'membresias' ? 'page' : undefined}
           >
-            <svg className="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+            <svg
+              className="nav-item-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.1"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <rect x="2" y="5" width="20" height="14" rx="2" />
               <line x1="2" y1="10" x2="22" y2="10" />
             </svg>
-            <div className="nav-item-text">
-              <span className="nav-item-title">Planes y Membresías</span>
-              <span className="nav-item-sub">Ventas y Congelamiento</span>
-            </div>
           </button>
 
           <button
             type="button"
             className={`nav-item ${activeTab === 'caja' ? 'active' : ''}`}
             onClick={() => onSelectTab('caja')}
+            data-tooltip="Caja y Turnos"
+            title="Caja y Turnos"
+            aria-label="Caja y Turnos"
+            aria-current={activeTab === 'caja' ? 'page' : undefined}
           >
-            <svg className="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+            <svg
+              className="nav-item-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.1"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <line x1="12" y1="1" x2="12" y2="23" />
               <path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
             </svg>
-            <div className="nav-item-text">
-              <span className="nav-item-title">Caja y Turnos</span>
-              <span className="nav-item-sub">Mañana / Tarde y Cuadre</span>
-            </div>
           </button>
 
           {esAdmin && (
-            <>
-              <div className="nav-section-label" style={{ marginTop: '0.75rem' }}>
-                Administración
-              </div>
-              <button
-                type="button"
-                className={`nav-item ${activeTab === 'admin' ? 'active' : ''}`}
-                onClick={() => onSelectTab('admin')}
+            <button
+              type="button"
+              className={`nav-item ${activeTab === 'admin' ? 'active' : ''}`}
+              onClick={() => onSelectTab('admin')}
+              data-tooltip="Panel Gerencia"
+              title="Panel Gerencia"
+              aria-label="Panel Gerencia"
+              aria-current={activeTab === 'admin' ? 'page' : undefined}
+            >
+              <svg
+                className="nav-item-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.1"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               >
-                <svg className="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                  <path d="M18 20V10M12 20V4M6 20v-6" />
-                </svg>
-                <div className="nav-item-text">
-                  <span className="nav-item-title">Panel Gerencia</span>
-                  <span className="nav-item-sub">Rentabilidad y Backups</span>
-                </div>
-              </button>
-            </>
+                <path d="M18 20V10M12 20V4M6 20v-6" />
+              </svg>
+            </button>
           )}
         </nav>
-      </div>
 
-      <div className="sidebar-footer">
-        <a
-          href="/?vista=monitor-cliente"
-          target="_blank"
-          rel="noreferrer"
-          className="sidebar-monitor-btn"
-        >
-          <svg
-            width="17"
-            height="17"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.2"
-            style={{ flexShrink: 0 }}
+        {/* Pie de barra lateral: 2do Monitor y Botón de Perfil con 2 Iniciales */}
+        <div className="sidebar-footer">
+          <a
+            href="/?vista=monitor-cliente"
+            target="_blank"
+            rel="noreferrer"
+            className="nav-item sidebar-monitor-btn"
+            data-tooltip="Pantalla Cliente (2do Monitor)"
+            title="Abrir Pantalla Cliente (2do Monitor)"
+            aria-label="Abrir Pantalla Cliente (2do Monitor)"
           >
-            <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-            <line x1="8" y1="21" x2="16" y2="21" />
-            <line x1="12" y1="17" x2="12" y2="21" />
-          </svg>
-          <span>Pantalla Cliente (2do Monitor)</span>
-        </a>
-
-        <div className="operator-card">
-          <img
-            src="/logos/web-monograma-fs-neon.png"
-            alt="FS"
-            style={{ height: '30px', width: 'auto' }}
-          />
-          <div className="operator-info">
-            <div className="operator-name">{usuario?.nombreCompleto}</div>
-            <span
-              className={`semaforo-badge ${
-                esAdmin ? 'badge-verde' : 'badge-neutral'
-              }`}
-              style={{ fontSize: '0.62rem', padding: '0.12rem 0.5rem' }}
+            <svg
+              className="nav-item-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.1"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
-              {usuario?.rol}
-            </span>
-          </div>
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+              <line x1="8" y1="21" x2="16" y2="21" />
+              <line x1="12" y1="17" x2="12" y2="21" />
+            </svg>
+          </a>
+
           <button
             type="button"
-            className="btn btn-outline btn-sm"
-            onClick={onLogout}
-            title="Cambiar de operador"
+            className={`sidebar-profile-btn ${activeTab === 'perfil' ? 'active' : ''}`}
+            onClick={() => onSelectTab('perfil')}
+            data-tooltip={`Mi Perfil • ${nombreCorto}`}
+            title={`Mi Perfil (${nombreCorto})`}
+            aria-label={`Abrir apartado de perfil de ${nombreCorto}`}
+            aria-current={activeTab === 'perfil' ? 'page' : undefined}
           >
-            Salir
+            <span className="sidebar-profile-initials">{iniciales}</span>
+            <span
+              className={`sidebar-profile-status-dot ${
+                esAdmin ? 'is-admin' : 'is-operator'
+              }`}
+              aria-hidden="true"
+            />
           </button>
         </div>
       </div>
@@ -201,7 +267,7 @@ export function TopHeader({ activeTab, turnoAbierto, onIrACaja }) {
           <img src="/logos/web-monograma-fs-neon.png" alt="FS" style={{ height: '24px' }} />
           {meta.titulo}
         </h1>
-        <p>{meta.descripcion}</p>
+        {meta.descripcion && <p>{meta.descripcion}</p>}
       </div>
 
       <div className="header-status-group">
